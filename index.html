@@ -1,435 +1,431 @@
 <!doctype html>
 <html lang="sw">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Aviator Analyzer — Prototype</title>
-  <style>
-    :root{
-      --bg:#0f1724; --panel:#0b1220; --accent:#06b6d4; --danger:#ef4444; --ok:#10b981; --jack:#f97316; --muted:#94a3b8;
-    }
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:linear-gradient(180deg,#041423,#071927);color:#e6eef6;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;}
-    .app{width:100%;max-width:1100px;background:var(--panel);border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(2,6,23,.6);}
-    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-    .title{font-size:1.1rem;font-weight:700;}
-    .cycle{font-size:.95rem;color:var(--muted);}
-    .main{display:grid;grid-template-columns:1fr 320px;gap:12px;}
-    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:10px;}
-    .big-risk{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:8px;}
-    .badge{font-weight:700;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.03);}
-    .controls{display:flex;flex-direction:column;gap:8px;}
-    .row{display:flex;gap:8px;align-items:center;}
-    button{background:var(--accent);border:0;padding:8px 10px;border-radius:8px;color:#052026;cursor:pointer;font-weight:700;}
-    .mic{background:#05324a;padding:10px;border-radius:10px;color:#bff3fb;border:2px solid rgba(255,255,255,0.03);display:flex;gap:8px;align-items:center;}
-    .toggle{font-size:.75rem;padding:4px 8px;border-radius:6px;background:#0b2a30;}
-    input[type="text"]{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit;}
-    .history{max-height:220px;overflow:auto;padding:8px;display:flex;flex-wrap:wrap;gap:6px;}
-    .round{padding:6px 8px;border-radius:6px;font-weight:700;background:rgba(255,255,255,0.02);}
-    .red{background:rgba(255,55,55,0.12);color:#ffc9c9}
-    .green{background:rgba(34,197,94,0.10);color:#d3ffea}
-    .orange{background:rgba(249,115,22,0.10);color:#ffe6d0}
-    .small{font-size:.8rem;color:var(--muted);}
-    .controls .hint{font-size:.8rem;color:var(--muted)}
-    .danger{color:var(--danger);font-weight:800}
-    .ok{color:var(--ok);font-weight:800}
-    .jack{color:var(--jack);font-weight:800}
-    .floating-undo{position:sticky;top:8px;margin-bottom:8px;display:flex;justify-content:flex-end;}
-    footer{margin-top:12px;font-size:.8rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aviator Analyzer — Single File (GitHub Pages)</title>
+<style>
+:root{
+  --bg:#061423; --card:#0b1b26; --accent:#06b6d4; --safe:#10b981; --caution:#f59e0b; --danger:#ef4444; --muted:#94a3b8;
+}
+*{box-sizing:border-box;font-family:Inter,system-ui,Arial;margin:0}
+body{background:linear-gradient(180deg,#04101a,#071725);color:#e6eef6;min-height:100vh;padding:18px;display:flex;justify-content:center}
+.app{width:100%;max-width:1100px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:14px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.title{font-weight:800}
+.cycle{color:var(--muted);font-size:.95rem}
+.main{display:grid;grid-template-columns:1fr 340px;gap:12px;margin-top:12px}
+.card{background:var(--card);padding:12px;border-radius:10px}
+.risk-big{display:flex;justify-content:space-between;align-items:center}
+.badge{padding:10px 14px;border-radius:999px;font-weight:800}
+.badge.safe{background:rgba(16,185,129,0.08);color:var(--safe)}
+.badge.caution{background:rgba(245,158,11,0.08);color:var(--caution)}
+.badge.danger{background:rgba(239,68,68,0.08);color:var(--danger)}
+.controls{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.row{display:flex;gap:8px;align-items:center}
+button{background:var(--accent);border:0;padding:8px 10px;border-radius:8px;color:#042829;cursor:pointer;font-weight:700}
+.small{font-size:.85rem;color:var(--muted)}
+.history{display:flex;flex-wrap:wrap;gap:6px;padding:8px;margin-top:8px;max-height:300px;overflow:auto;background:rgba(255,255,255,0.01);border-radius:8px}
+.round{padding:6px 8px;border-radius:6px;font-weight:700;background:rgba(255,255,255,0.02);cursor:pointer}
+.round.red{background:rgba(239,68,68,0.10);color:#ffd6d6}
+.round.green{background:rgba(16,185,129,0.06);color:#d6fff0}
+.round.orange{background:rgba(249,115,22,0.07);color:#ffedd8}
+.footer{display:flex;justify-content:space-between;margin-top:10px;color:var(--muted);font-size:.85rem}
+.popup-back{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5)}
+.popup{background:linear-gradient(180deg,#071827,#08202a);padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);max-width:420px;text-align:center}
+.popup h2{margin:6px 0 10px 0}
+.knob{font-weight:900;font-size:1.4rem}
+.config{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
+.small-btn{background:#1b2a30;color:#fff;padding:6px 8px;border-radius:8px}
+.note{color:var(--muted);font-size:.85rem;margin-top:6px}
+</style>
 </head>
 <body>
-  <div class="app" role="application" aria-label="Aviator Analyzer Prototype">
-    <header>
+  <div class="app" role="application" aria-label="Aviator Analyzer Single File">
+    <div class="header">
       <div>
-        <div class="title">Aviator Analyzer — Prototype</div>
-        <div class="cycle small">Cycle (11:00): <span id="cycleTimer">--:--</span> • Cycle ID: <span id="cycleId">--</span></div>
+        <div class="title">Aviator Analyzer — Single File</div>
+        <div class="cycle small">Cycle (11:00) • Countdown: <span id="cycleTimer">--:--</span> • CycleID: <span id="cycleId">--</span></div>
       </div>
-      <div id="status" class="small">Disconnected</div>
-    </header>
+      <div class="small" id="statusLabel">Auto alerts: ON</div>
+    </div>
 
     <div class="main">
       <section class="card">
-        <div class="big-risk">
+        <div class="risk-big">
           <div>
-            <div class="small">Risk Assessment</div>
-            <div style="font-size:1.6rem;font-weight:900" id="riskLabel">--</div>
-            <div class="small" id="riskDetail">--</div>
+            <div class="small">Risk</div>
+            <div id="riskBadge" class="badge safe">SAFE</div>
+            <div id="riskDetail" class="small">No recent rounds</div>
           </div>
           <div style="text-align:right">
-            <div class="small">Jackpot Prob (next round)</div>
-            <div style="font-size:1.6rem;font-weight:900" id="jackProb">--%</div>
-            <div class="small" id="jackDetail">Prior: Beta(1,999)</div>
+            <div class="small">Jackpot probability (next round)</div>
+            <div id="jackProb" class="knob">0.00%</div>
+            <div id="jackInfo" class="small">Beta(1,999)</div>
           </div>
         </div>
-
-        <hr style="opacity:.06;margin:12px 0">
 
         <div class="controls">
           <div class="row">
-            <button id="micBtn" class="mic" title="Use mic to add multiplier">🎙️ <span id="micLabel">Mic</span></button>
-            <button id="toggleAuto" class="toggle" title="Toggle automatic voice input">Auto: OFF</button>
-            <button id="errorReset" title="Reset one error" style="background:#2b2730;color:#fff">Error Reset</button>
+            <button id="micBtn">🎙️ Mic</button>
+            <button id="toggleAuto" class="small-btn">AutoVoice: OFF</button>
+            <button id="learnToggle" class="small-btn">Learn: ON</button>
+            <button id="errorBtn" class="small-btn">Error Reset</button>
           </div>
 
           <div class="row" style="margin-top:6px">
-            <input id="manualInput" type="text" placeholder="Enter multiplier e.g. 1.37 or 12.00 then Enter" aria-label="Manual multiplier input">
+            <input id="manual" class="input" placeholder="Type multiplier e.g. 1.23 then Enter" />
             <button id="addBtn">Add</button>
           </div>
 
-          <div class="row small">
-            <div class="hint">Learn Mode: <label><input type="checkbox" id="learnMode" checked> ON</label></div>
-            <div style="flex:1"></div>
-            <div class="hint">Use server time: <label><input type="checkbox" id="useServerTime"></label></div>
+          <div class="config">
+            <label class="small">Cycle length (seconds): <input id="cycleLen" class="input" value="660" /></label>
+            <label class="small">Jackpot threshold (x): <input id="jackThresh" class="input" value="10" /></label>
+            <label class="small">Popup when prob ≥ (%) : <input id="jackPopupThresh" class="input" value="2.0" /></label>
+            <label class="small">Show last N rounds: <input id="showN" class="input" value="200" /></label>
           </div>
 
-          <div style="margin-top:8px">
-            <div class="small">Analytics (last 60s window):</div>
-            <div class="small" id="analytics">—</div>
-          </div>
+          <div class="note">Auto-analysis uses: Window(60s) + Cycle(11min) + Last 30 rounds combined (weighted).</div>
         </div>
 
         <div style="margin-top:12px">
-          <div class="floating-undo"><button id="undoBtn" style="background:#3b3b3b;color:#fff">Undo last</button></div>
-          <div class="small">Round history (bottom). Click any round to remove it.</div>
+          <div class="small">Analytics (live)</div>
+          <div id="analytics" class="small">—</div>
         </div>
       </section>
 
-      <aside class="card" style="height:100%">
+      <aside class="card">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="small">History (last 500)</div>
-          <div class="small">Errors: <span id="errorCount">0</span></div>
+          <div class="small">Round history</div>
+          <div class="small">Errors: <span id="errCount">0</span></div>
         </div>
 
-        <div id="history" class="history" aria-live="polite" style="margin-top:8px"></div>
+        <div id="history" class="history" aria-live="polite"></div>
 
-        <hr style="opacity:.06;margin:12px 0">
-
-        <div class="small">Config</div>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
-          <label class="small">Cycle length (seconds): <input id="cycleLen" type="number" value="660" style="width:100px"></label>
-          <label class="small">Jackpot threshold (x): <input id="jackThresh" type="number" value="10" style="width:100px"></label>
-          <label class="small">Error range (min-max): <input id="errMin" type="number" value="1" style="width:60px"> - <input id="errMax" type="number" value="1.3" style="width:60px"></label>
-          <label class="small">Show last N rounds: <input id="showN" type="number" value="200" style="width:80px"></label>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button id="undoBtn" class="small-btn">Undo last</button>
+          <button id="clearBtn" class="small-btn">Clear</button>
+          <button id="exportBtn" class="small-btn">Export CSV</button>
         </div>
+
+        <div style="margin-top:8px" class="small">Tip: Click a round to remove it (confirm).</div>
       </aside>
     </div>
 
-    <footer>
-      <div>Prototype — not for betting guarantees. Logs stored locally & optionally on server.</div>
-      <div>Version 0.9</div>
-    </footer>
+    <div class="footer">
+      <div class="small">Prototype — for analysis only. Not a guarantee for betting outcomes.</div>
+      <div class="small">v1.0 • Local-only (GitHub Pages)</div>
+    </div>
+  </div>
+
+  <!-- Jackpot popup -->
+  <div id="popupWrap" style="display:none" aria-hidden="true">
+    <div class="popup-back">
+      <div class="popup">
+        <div style="font-size:2.6rem">💥</div>
+        <h2>Jackpot Alert</h2>
+        <div id="popupMsg" class="small">Model estimates elevated chance of jackpot soon.</div>
+        <div style="margin-top:12px">
+          <button id="dismissPopup" class="small-btn">Dismiss</button>
+        </div>
+      </div>
+    </div>
   </div>
 
 <script>
-/* ---------------------------
-  Simple frontend logic:
-  - maintains rounds array in localStorage
-  - computes analytics (last 60s window)
-  - simple Beta update for jackpot probability
-  - SpeechRecognition to parse numbers
-  - WebSocket to backend optional
-----------------------------*/
+/*
+ Single-file frontend:
+ - auto analysis every second
+ - cycle 11 minutes default
+ - window 60s + cycle + last30 combined (D)
+ - Beta prior for jackpot (a,b)
+ - localStorage persistence
+ - popup only (no sound)
+ - basic SpeechRecognition (optional)
+*/
+
 (function(){
+  // config & state
   const state = {
     rounds: [], // {id, ts, mult, source}
     cycleLen: 660,
     jackThresh: 10,
-    errMin: 1.0,
-    errMax: 1.3,
+    jackPopupThreshPct: 2.0,
     showN: 200,
-    learnMode: true,
+    learn: true,
     autoVoice: false,
-    serverConnected: false,
-    betaA: 1, betaB: 999, // prior
+    betaA: 1, betaB: 999,
+    cycleStartTs: Math.floor(Date.now()/1000),
   };
+
+  // storage
+  const STORE_KEY = 'aviator_single_v1';
+  function load(){ try{ const s = localStorage.getItem(STORE_KEY); if(s){ const obj=JSON.parse(s); Object.assign(state, obj); if(!state.rounds) state.rounds=[];} }catch(e){console.warn(e)} }
+  function save(){ try{ const copy = { ...state, rounds: state.rounds.slice(-5000) }; localStorage.setItem(STORE_KEY, JSON.stringify(copy)); }catch(e){console.warn(e)} }
 
   // DOM
   const el = id => document.getElementById(id);
-  const historyEl = el('history'), riskLabel = el('riskLabel'), jackProb = el('jackProb'),
-        cycleTimer = el('cycleTimer'), cycleIdEl = el('cycleId'), statusEl = el('status'),
-        analyticsEl = el('analytics'), errorCountEl = el('errorCount');
+  const cycleTimer = el('cycleTimer'), cycleIdEl = el('cycleId'), riskBadge = el('riskBadge'), riskDetail = el('riskDetail');
+  const jackProbEl = el('jackProb'), jackInfo = el('jackInfo'), analyticsEl = el('analytics'), historyEl = el('history');
+  const errCountEl = el('errCount'), statusLabel = el('statusLabel');
+  const popupWrap = el('popupWrap'), popupMsg = el('popupMsg');
 
-  // load config
-  function loadState(){
-    try {
-      const raw = localStorage.getItem('aviator_state_v1');
-      if(raw) {
-        const s = JSON.parse(raw);
-        state.rounds = s.rounds || [];
-        state.betaA = s.betaA ?? state.betaA;
-        state.betaB = s.betaB ?? state.betaB;
-      }
-    } catch(e){ console.warn(e); }
-    // UI fields
-    el('cycleLen').value = state.cycleLen;
-    el('jackThresh').value = state.jackThresh;
-    el('errMin').value = state.errMin;
-    el('errMax').value = state.errMax;
-    el('showN').value = state.showN;
-    el('learnMode').checked = state.learnMode;
-    el('toggleAuto').textContent = 'Auto: OFF';
-  }
-  loadState();
+  // init load
+  load();
 
-  function saveState(){
-    const toSave = { rounds: state.rounds, betaA: state.betaA, betaB: state.betaB };
-    localStorage.setItem('aviator_state_v1', JSON.stringify(toSave));
-  }
-
-  // Helpers
-  function nowTs(){ return Date.now(); }
+  // helpers
   function uid(){ return Math.random().toString(36).slice(2,9); }
-  function formatTime(ts){
-    const d = new Date(ts);
-    return d.toLocaleTimeString();
-  }
+  function now(){ return Date.now(); }
+  function formatT(ts){ return new Date(ts).toLocaleTimeString(); }
 
-  // Add round
-  function addRound(mult, source='manual', ts = nowTs()){
+  // add round
+  function addRound(mult, source='manual', ts = now()){
     const m = Number(mult);
-    if (Number.isNaN(m)) return;
+    if(isNaN(m)) return;
     const r = { id: uid(), ts, mult: m, source };
     state.rounds.push(r);
-    if (state.learnMode) {
-      // update jackpot beta if meets jackpot threshold (we consider each round a trial)
-      if (m >= state.jackThresh) {
-        state.betaA += 1;
-      } else {
-        state.betaB += 1;
-      }
+    // update beta (learning)
+    if(state.learn){
+      if(m >= state.jackThresh) state.betaA += 1;
+      else state.betaB += 1;
     }
-    // cap history
-    if (state.rounds.length > 5000) state.rounds.shift();
-    saveState();
+    // keep last 5000
+    if(state.rounds.length > 5000) state.rounds.shift();
+    save();
     render();
-    // optionally send to server
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({type:'round',payload:r}));
-    }
   }
 
-  // Remove last round (undo)
-  function undoLast(){
-    const r = state.rounds.pop();
-    if(!r) return;
-    // if learned, roll back beta update if within counts (best-effort)
-    if (r.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
-    else if (state.betaB>1) state.betaB -=1;
-    saveState();
-    render();
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({type:'undo',payload:{id:r.id}}));
-    }
-  }
-
-  // Remove arbitrary round
-  function removeRoundById(id){
+  // remove by id
+  function removeById(id){
     const idx = state.rounds.findIndex(r=>r.id===id);
     if(idx===-1) return;
-    const [r] = state.rounds.splice(idx,1);
-    // best-effort rollback
-    if (r.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
-    else if (state.betaB>1) state.betaB -=1;
-    saveState(); render();
+    const [rem] = state.rounds.splice(idx,1);
+    // best-effort rollback to beta
+    if(state.learn){
+      if(rem.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
+      else if(state.betaB>1) state.betaB -=1;
+    }
+    save(); render();
   }
 
-  // Analytics: last 60s window
-  function computeAnalytics(){
-    const cutoff = nowTs() - 60000;
-    const window = state.rounds.filter(r=>r.ts >= cutoff);
-    if(window.length===0) return {count:0, freqCrash:0, avg:0, median:0, stdev:0, lastJack: null};
-    const mults = window.map(w=>w.mult).sort((a,b)=>a-b);
+  function undoLast(){
+    if(state.rounds.length===0) return;
+    const rem = state.rounds.pop();
+    if(state.learn){
+      if(rem.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
+      else if(state.betaB>1) state.betaB -=1;
+    }
+    save(); render();
+  }
+
+  // compute analytics
+  function window60(){
+    const cutoff = now() - 60000;
+    return state.rounds.filter(r=>r.ts >= cutoff);
+  }
+  function cycleWindow(){
+    // cycle based on cycleStartTs and cycleLen
+    const cid = Math.floor((Math.floor(now()/1000) - state.cycleStartTs) / state.cycleLen);
+    const cycleStart = (state.cycleStartTs + cid*state.cycleLen) * 1000;
+    const cycleEnd = cycleStart + state.cycleLen*1000;
+    return { cid, cycleStart, cycleEnd, rounds: state.rounds.filter(r=>r.ts >= cycleStart && r.ts < cycleEnd) };
+  }
+  function lastN(n=30){ return state.rounds.slice(-n); }
+
+  // risk scoring: combine A (window60), B (cycle), C (last30) with weights
+  function assessRiskCombined(){
+    const wA=0.5, wB=0.3, wC=0.2; // weights
+    // A: window60 score
+    const w = window60(); const arrW = w.map(x=>x.mult);
+    const aScore = scoreFromArray(arrW);
+    // B: cycle score
+    const c = cycleWindow(); const arrC = c.rounds.map(x=>x.mult);
+    const bScore = scoreFromArray(arrC);
+    // C: last30
+    const arr30 = lastN(30).map(x=>x.mult);
+    const cScore = scoreFromArray(arr30);
+    // combined
+    const combined = Math.min(100, Math.round(aScore*wA + bScore*wB + cScore*wC));
+    return {combined, aScore, bScore, cScore, windowCount: arrW.length, cycleCount: arrC.length, last30Count: arr30.length};
+  }
+
+  // helper to convert array of multipliers to 0-100 risk score
+  function scoreFromArray(mults){
+    if(!mults || mults.length===0) return 0;
+    // freq of <1.5
+    const freq = mults.filter(m=>m < 1.5).length / mults.length;
+    // median
+    const s = mults.slice().sort((a,b)=>a-b); const median = s[Math.floor(s.length/2)] || 0;
+    // stdev
     const avg = mults.reduce((a,b)=>a+b,0)/mults.length;
-    const median = mults[Math.floor(mults.length/2)] ?? avg;
-    const freqCrash = mults.filter(m=>m < 1.5).length / mults.length;
-    const stdev = Math.sqrt(mults.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/mults.length);
-    const lastJack = state.rounds.slice().reverse().find(r=>r.mult >= state.jackThresh);
-    return {count: window.length, freqCrash, avg, median, stdev, lastJack};
+    const st = Math.sqrt(mults.reduce((a,b)=>a+Math.pow(b-avg,2),0)/mults.length);
+    // compute score weights
+    let score = 0;
+    score += freq * 100 * 0.6;
+    score += Math.max(0, (2.0 - median)/2.0) * 100 * 0.3;
+    score += Math.min(1, st/3) * 100 * 0.1;
+    return Math.min(100, Math.round(score));
   }
 
-  // Risk scoring (simple weighted)
-  function computeRisk(){
-    const a = computeAnalytics();
-    if(a.count === 0) return {score:0,label:'NO DATA',detail:'No recent rounds'};
-    // weights
-    const wFreq = 60, wMed = 20, wSt = 20;
-    // normalize median to [0,1] with target 2.0 (higher median => lower risk)
-    const medNorm = Math.max(0, Math.min(1, (2.0 - a.median) / 1.5)); // median<2 increase risk
-    // stdev normalized
-    const stNorm = Math.min(1, a.stdev / 3);
-    const score = Math.min(100, Math.round((a.freqCrash * wFreq + medNorm * wMed + stNorm * wSt) ));
-    let label = 'SAFE', cls = 'ok';
-    if(score > 70) {label='DANGER'; cls='danger'} else if(score>40){label='CAUTION'; cls='small'};
-    const detail = `last60s count=${a.count}, crashes<1.5=${Math.round(a.freqCrash*100)}%, median=${a.median.toFixed(2)}`;
-    return {score, label, detail, cls};
-  }
-
-  // Jackpot probability (Beta posterior mean)
-  function jackpotProb(){
+  // jackpot posterior mean
+  function jackpotPct(){
     const a = state.betaA, b = state.betaB;
-    const mean = (a) / (a + b);
-    return {pct: (mean*100).toFixed(2), a, b};
+    return (a / (a + b)) * 100;
   }
 
-  // Render UI
+  // popup control
+  let popupShown = false;
+  function checkPopup(){
+    const pct = jackpotPct();
+    const thresh = parseFloat(el('jackPopupThresh').value) || state.jackPopupThreshPct;
+    if(pct >= thresh && !popupShown){
+      showPopup(`Jackpot probability ${pct.toFixed(2)}% ≥ ${thresh}%.`);
+    }
+  }
+  function showPopup(msg){
+    popupMsg.textContent = msg;
+    popupWrap.style.display = 'block';
+    popupShown = true;
+  }
+  function dismissPopup(){
+    popupWrap.style.display = 'none';
+    popupShown = false;
+  }
+
+  // render UI
   function render(){
-    // history
+    // update cycle timer & id
+    const len = Number(el('cycleLen').value) || state.cycleLen;
+    state.cycleLen = len;
+    const cid = Math.floor((Math.floor(now()/1000) - state.cycleStartTs) / state.cycleLen);
+    cycleIdEl.textContent = cid;
+    const cycleEndMs = ((state.cycleStartTs + (cid+1)*state.cycleLen) * 1000);
+    const leftMs = Math.max(0, cycleEndMs - now());
+    const mm = String(Math.floor(leftMs/60000)).padStart(2,'0');
+    const ss = String(Math.floor((leftMs%60000)/1000)).padStart(2,'0');
+    cycleTimer.textContent = `${mm}:${ss}`;
+
+    // compute risk
+    const res = assessRiskCombined();
+    let label='SAFE', cls='safe';
+    if(res.combined > 70) { label='DANGER'; cls='danger' }
+    else if(res.combined > 40) { label='CAUTION'; cls='caution' }
+    else { label='SAFE'; cls='safe' }
+    riskBadge.textContent = `${label} (${res.combined})`;
+    riskBadge.className = 'badge ' + cls;
+    riskDetail.textContent = `Window:${res.windowCount} Cycle:${res.cycleCount} Last30:${res.last30Count} • A:${res.aScore} B:${res.bScore} C:${res.cScore}`;
+
+    // jackpot
+    const pct = jackpotPct();
+    jackProbEl.textContent = pct.toFixed(2) + '%';
+    jackInfo.textContent = `Beta(${state.betaA},${state.betaB})`;
+
+    // analytics short
+    const win = window60();
+    const avg = win.length? (win.reduce((a,b)=>a+b.mult,0)/win.length).toFixed(2):'—';
+    analyticsEl.textContent = `last60s count=${win.length} avg=${avg}`;
+
+    // history render
     historyEl.innerHTML = '';
-    const show = Number(el('showN').value) || state.showN;
-    const recent = state.rounds.slice(-show);
-    for (let i = recent.length-1; i>=0; i--){
+    const showN = Number(el('showN').value) || state.showN;
+    const recent = state.rounds.slice(-showN);
+    for(let i = recent.length-1; i>=0; i--){
       const r = recent[i];
-      const node = document.createElement('div');
-      node.className = 'round';
-      if (r.mult < 2) node.classList.add('red');
-      else if (r.mult >= state.jackThresh) node.classList.add('orange');
-      else node.classList.add('green');
-      node.textContent = `${r.mult.toFixed(2)}× ${formatTime(r.ts)}`;
-      node.title = `Source: ${r.source}`;
-      node.onclick = ()=>{ if(confirm('Remove this round?')) removeRoundById(r.id); };
-      historyEl.appendChild(node);
+      const d = document.createElement('div');
+      d.className = 'round ' + (r.mult >= state.jackThresh ? 'orange' : (r.mult >= 2 ? 'green' : 'red'));
+      d.textContent = `${r.mult.toFixed(2)}× ${formatT(r.ts)}`;
+      d.title = `Source: ${r.source}`;
+      d.onclick = ()=>{ if(confirm('Remove this round?')) removeById(r.id); };
+      historyEl.appendChild(d);
     }
 
-    // risk & jack
-    const risk = computeRisk();
-    riskLabel.textContent = `${risk.label} (${risk.score})`;
-    riskDetail.textContent = risk.detail;
-    const j = jackpotProb();
-    jackProb.textContent = `${j.pct}%`;
-    el('jackDetail').textContent = `Beta(${j.a},${j.b}) • last jack: ${state.rounds.slice().reverse().find(r=>r.mult>=state.jackThresh)?.mult ?? '—'}`;
-    // analytics small
-    const an = computeAnalytics();
-    analyticsEl.textContent = `count=${an.count} • crashes<1.5=${Math.round(an.freqCrash*100)}% • avg=${an.avg?an.avg.toFixed(2):'—'}`;
     // errors
-    const errMin = Number(el('errMin').value), errMax = Number(el('errMax').value);
+    const errMin = Number(el('errMin')?.value) || 1.0;
+    const errMax = Number(el('errMax')?.value) || 1.3;
     const errors = state.rounds.filter(r=>r.mult >= errMin && r.mult < errMax).length;
-    errorCountEl.textContent = errors;
-    // status
-    statusEl.textContent = ws && ws.readyState===WebSocket.OPEN ? 'Connected (server)' : 'Local';
+    errCountEl.textContent = errors;
+
+    // popup check
+    checkPopup();
+    save();
   }
 
-  // cycle timer
-  function computeCycle(){
-    const len = Number(el('cycleLen').value) || 660;
-    state.cycleLen = len;
-    const ts = nowTs();
-    // cycle id = floor(ts/len)
-    const cid = Math.floor(ts/1000 / len);
-    cycleIdEl.textContent = cid;
-    // time left = ( (cid+1)*len*1000 - ts)
-    const left = ((cid+1) * len * 1000) - ts;
-    const mm = String(Math.floor(left/60000)).padStart(2,'0');
-    const ss = String(Math.floor((left%60000)/1000)).padStart(2,'0');
-    cycleTimer.textContent = `${mm}:${ss}`;
+  // UI element refs for values used above (errMin)
+  // create hidden errMin & errMax controls for error reset (not visible but used)
+  if(!el('errMin')){
+    const i1 = document.createElement('input'); i1.id='errMin'; i1.style.display='none'; i1.value='1.0'; document.body.appendChild(i1);
+  }
+  if(!el('errMax')){
+    const i2 = document.createElement('input'); i2.id='errMax'; i2.style.display='none'; i2.value='1.30'; document.body.appendChild(i2);
   }
 
-  // Event bindings
-  el('addBtn').addEventListener('click', ()=>{ const v = el('manualInput').value.trim(); if(v) { addRound(parseFloat(v), 'manual'); el('manualInput').value=''; }});
-  el('manualInput').addEventListener('keyup', (e)=>{ if(e.key==='Enter'){ el('addBtn').click(); }});
-  el('undoBtn').addEventListener('click', ()=>{ if(confirm('Undo last round?')) undoLast(); });
+  // events
+  el('addBtn').addEventListener('click', ()=>{ const v = el('manual').value.trim(); if(v){ addRound(parseFloat(v),'manual'); el('manual').value=''; }});
+  el('manual').addEventListener('keyup', (e)=>{ if(e.key==='Enter') el('addBtn').click(); });
+  el('undoBtn').addEventListener('click', ()=>{ if(confirm('Undo last?')) undoLast(); });
+  el('clearBtn').addEventListener('click', ()=>{ if(confirm('Clear all history?')){ state.rounds=[]; state.betaA=1; state.betaB=999; save(); render(); }});
+  el('exportBtn').addEventListener('click', ()=>{ exportCSV(); });
 
-  el('cycleLen').addEventListener('change', ()=>{ state.cycleLen = Number(el('cycleLen').value); saveState(); });
-  el('jackThresh').addEventListener('change', ()=>{ state.jackThresh = Number(el('jackThresh').value); saveState(); render(); });
-  el('errMin').addEventListener('change', render); el('errMax').addEventListener('change', render);
-  el('showN').addEventListener('change', render);
-  el('learnMode').addEventListener('change', ()=>{ state.learnMode = el('learnMode').checked; });
   el('toggleAuto').addEventListener('click', ()=>{
-    state.autoVoice = !state.autoVoice; el('toggleAuto').textContent = `Auto: ${state.autoVoice ? 'ON':'OFF'}`;
+    state.autoVoice = !state.autoVoice; el('toggleAuto').textContent = 'AutoVoice: ' + (state.autoVoice? 'ON':'OFF');
   });
-
-  el('errorReset').addEventListener('click', ()=>{
+  el('learnToggle').addEventListener('click', ()=>{
+    state.learn = !state.learn; el('learnToggle').textContent = 'Learn: ' + (state.learn? 'ON':'OFF');
+  });
+  el('errorBtn').addEventListener('click', ()=>{
+    // Error reset: find oldest error in last 100 and remove it
     const errMin = Number(el('errMin').value), errMax = Number(el('errMax').value);
-    const idx = state.rounds.slice().reverse().findIndex(r=>r.mult >= errMin && r.mult < errMax);
-    if(idx === -1){ alert('Hakuna error iliyopo kwenye history.'); return; }
-    const idxReal = state.rounds.length - 1 - idx;
-    const [removed] = state.rounds.splice(idxReal,1);
-    // best-effort rollback
-    if (removed.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
-    else if (state.betaB>1) state.betaB -=1;
-    saveState(); render();
+    const idx = state.rounds.findIndex(r=>r.mult >= errMin && r.mult < errMax);
+    if(idx === -1) return alert('Hakuna error iliyopo kwenye history.');
+    state.rounds.splice(idx,1);
+    save(); render();
+    alert('Error reset applied (one entry removed).');
   });
 
-  // periodic updates
-  setInterval(()=>{ computeCycle(); render(); }, 900);
+  el('dismissPopup').addEventListener('click', ()=>{ dismissPopup(); });
 
-  // SpeechRecognition (Web Speech API)
-  let recog=null;
+  // export CSV
+  function exportCSV(){
+    const rows = [['id','timestamp','mult','source']];
+    state.rounds.forEach(r=> rows.push([r.id, new Date(r.ts).toISOString(), r.mult, r.source]));
+    const csv = rows.map(r=> r.map(c=> `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='aviator_history.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  // speech recognition (optional)
+  let recog = null;
   try {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(SpeechRecognition){
-      recog = new SpeechRecognition();
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(SR){
+      recog = new SR();
       recog.lang = 'en-US';
       recog.interimResults = false;
       recog.maxAlternatives = 1;
-      recog.onresult = (ev)=>{
-        const text = ev.results[0][0].transcript;
-        // extract number with optional "x"
-        const m = text.match(/(\d+(\.\d+)?)/);
-        if(m){
-          const num = parseFloat(m[1]);
-          addRound(num, 'voice');
-          if(!state.autoVoice){
-            alert('Detected multiplier: ' + num);
-          }
-        } else {
-          console.log('Voice not parsed:', text);
-        }
+      recog.onresult = (ev) => {
+        const txt = ev.results[0][0].transcript;
+        const m = txt.match(/(\\d+(\\.\\d+)?)/);
+        if(m){ const num = parseFloat(m[1]); addRound(num,'voice'); if(!state.autoVoice) alert('Voice: ' + num); }
       };
-      recog.onerror = (e)=>{ console.warn('Speech error',e); };
+      recog.onerror = (e)=> console.warn('Speech error', e);
     }
-  } catch(e){ console.warn('Speech API not available',e); }
+  } catch(e){ console.warn('Speech not available', e); }
 
-  // mic button
   el('micBtn').addEventListener('click', ()=>{
-    if(!recog){ alert('SpeechRecognition not supported in this browser. Use Chrome/Edge on desktop or Android.'); return; }
-    try {
-      recog.start();
-      el('micLabel').textContent = 'Listening...';
-      setTimeout(()=>{ el('micLabel').textContent = 'Mic'; }, 4000);
-    } catch(e){ console.warn(e); }
+    if(!recog){ alert('SpeechRecognition not supported in this browser. Use Chrome/Edge/Android Chrome.'); return; }
+    try{ recog.start(); }catch(e){ console.warn(e) }
   });
 
-  // Keyboard shortcuts (optional)
-  window.addEventListener('keydown', (e)=>{
-    if(e.key === 'z' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); undoLast(); }
-  });
-
-  // WebSocket client to backend (optional)
-  let ws = null;
-  function connectWS(){
-    try {
-      ws = new WebSocket((location.hostname? (location.protocol==='https:'?'wss://':'ws://') + location.hostname + ':3000' : 'ws://localhost:3000'));
-      ws.onopen = ()=>{ console.log('ws open'); statusEl.textContent = 'Connected (server)'; };
-      ws.onmessage = (ev)=> {
-        try {
-          const data = JSON.parse(ev.data);
-          if(data.type === 'round'){
-            // incorporate round from server if not present
-            if(!state.rounds.find(r=>r.id===data.payload.id)){
-              state.rounds.push(data.payload);
-              saveState(); render();
-            }
-          } else if(data.type === 'sync'){
-            // server sends full history
-            // best-effort merge
-            const remote = data.payload || [];
-            remote.forEach(r=>{ if(!state.rounds.find(x=>x.id===r.id)) state.rounds.push(r); });
-            saveState(); render();
-          }
-        } catch(e){ console.warn(e); }
-      };
-      ws.onclose = ()=>{ statusEl.textContent='Local'; console.log('ws closed'); };
-    } catch(e){ console.warn('ws fail', e); statusEl.textContent='Local'; }
-  }
-
-  // attempt connect once
-  setTimeout(connectWS, 800);
+  // auto-run loop
+  setInterval(()=>{ render(); }, 1000);
 
   // initial render
   render();
 
-  // Expose for debugging
-  window.aviator = { state, addRound, undoLast, removeRoundById, render };
+  // expose for debug
+  window.aviator = { state, addRound, undoLast, removeById, render, showPopup, dismissPopup };
 })();
 </script>
 </body>
