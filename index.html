@@ -1,535 +1,80 @@
-<!doctype html>
-<html lang="sw">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Aviator Analyzer — Improved (Single File)</title>
-<meta name="description" content="Aviator Analyzer — automatic batch analysis, voice input, jackpot popup. Use on GitHub Pages (HTTPS) for SpeechRecognition." />
+<title>Aviator Predictor Simple</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-:root{
-  --bg:#051821; --card:#071a24; --muted:#9fb3c2; --accent:#06b6d4;
-  --safe:#10b981; --caution:#f59e0b; --danger:#ef4444; --jack:#f97316;
+body {
+  background:#111;
+  color:white;
+  font-family:Arial;
+  padding:20px;
 }
-*{box-sizing:border-box;font-family:Inter,system-ui,Arial;margin:0}
-body{background:linear-gradient(180deg,#031219,#061829);color:#e6eef6;min-height:100vh;padding:18px;display:flex;justify-content:center}
-.app{width:100%;max-width:1100px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border-radius:12px;padding:14px}
-.header{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.title{font-weight:800}
-.cycle{color:var(--muted);font-size:.95rem}
-.main{display:grid;grid-template-columns:1fr 360px;gap:12px;margin-top:12px}
-.card{background:var(--card);padding:12px;border-radius:10px}
-.risk-big{display:flex;justify-content:space-between;align-items:center}
-.badge{padding:10px 14px;border-radius:999px;font-weight:800}
-.badge.safe{background:rgba(16,185,129,0.08);color:var(--safe)}
-.badge.caution{background:rgba(245,158,11,0.08);color:var(--caution)}
-.badge.danger{background:rgba(239,68,68,0.08);color:var(--danger)}
-.badge.jack{background:rgba(249,115,22,0.10);color:var(--jack)}
-.controls{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.row{display:flex;gap:8px;align-items:center}
-button{background:var(--accent);border:0;padding:8px 10px;border-radius:8px;color:#042829;cursor:pointer;font-weight:700}
-.small{font-size:.85rem;color:var(--muted)}
-.history{display:flex;flex-wrap:wrap;gap:6px;padding:8px;margin-top:8px;max-height:360px;overflow:auto;background:rgba(255,255,255,0.01);border-radius:8px}
-.round{padding:6px 8px;border-radius:6px;font-weight:700;background:rgba(255,255,255,0.02);cursor:pointer}
-.round.red{background:rgba(239,68,68,0.10);color:#ffd6d6}
-.round.green{background:rgba(16,185,129,0.06);color:#d6fff0}
-.round.orange{background:rgba(249,115,22,0.07);color:#ffedd8}
-.footer{display:flex;justify-content:space-between;margin-top:10px;color:var(--muted);font-size:.85rem}
-.popup-back{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:9999}
-.popup{background:linear-gradient(180deg,#071827,#08202a);padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);max-width:480px;text-align:center;color:#fff}
-.popup h2{margin:6px 0 10px 0}
-.knob{font-weight:900;font-size:1.4rem}
-.label{font-weight:700;margin-top:6px}
-.config{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
-.small-btn{background:#162e36;color:#fff;padding:6px 8px;border-radius:8px}
-.log{background:#041018;padding:8px;border-radius:8px;max-height:140px;overflow:auto;font-size:.85rem;color:var(--muted)}
-.toast{position:fixed;right:16px;bottom:16px;background:#0b2a30;padding:10px;border-radius:8px;color:#cfeff3;box-shadow:0 6px 18px rgba(0,0,0,0.6)}
+input, button {
+  width:100%;
+  padding:14px;
+  margin-top:12px;
+  font-size:18px;
+  border-radius:8px;
+}
+button {
+  background:#d400ff;
+  color:white;
+  border:none;
+  font-weight:bold;
+}
 </style>
 </head>
 <body>
-  <div class="app" role="application" aria-label="Aviator Analyzer">
-    <div class="header">
-      <div>
-        <div class="title">Aviator Analyzer — Fixed (Batch Alerts)</div>
-        <div class="cycle small">Cycle (11:00) • Countdown: <span id="cycleTimer">--:--</span> • CycleID: <span id="cycleId">--</span></div>
-      </div>
-      <div class="small" id="statusLabel">Auto alerts: BATCH mode</div>
-    </div>
 
-    <div class="main">
-      <section class="card" aria-live="polite">
-        <div class="risk-big">
-          <div>
-            <div class="small">Risk</div>
-            <div id="riskBadge" class="badge safe">SAFE</div>
-            <div id="riskDetail" class="small">Waiting for data...</div>
-          </div>
-          <div style="text-align:right">
-            <div class="small">Jackpot probability (next round)</div>
-            <div id="jackProb" class="knob">0.00%</div>
-            <div id="jackInfo" class="small">Beta(1,999)</div>
-          </div>
-        </div>
+<h2>Aviator Predictor (Alert Version)</h2>
 
-        <div class="controls">
-          <div class="row">
-            <button id="micBtn">🎙️ Mic</button>
-            <button id="toggleAuto" class="small-btn">AutoVoice: OFF</button>
-            <button id="learnToggle" class="small-btn">Learn: ON</button>
-            <button id="errorBtn" class="small-btn">Error Reset</button>
-          </div>
+<input id="multiplierInput" placeholder="Weka multiplier ya mwisho mfano: 1.24">
 
-          <div class="row" style="margin-top:6px">
-            <input id="manual" class="input" placeholder="Type multiplier e.g. 1.23 then Enter" />
-            <button id="addBtn">Add</button>
-          </div>
-
-          <div class="config">
-            <label class="small">Cycle length (seconds): <input id="cycleLen" class="input" value="660" /></label>
-            <label class="small">Jackpot threshold (x): <input id="jackThresh" class="input" value="10" /></label>
-            <label class="small">Popup when jackpot ≥ (%) : <input id="jackPopupThresh" class="input" value="2.0" /></label>
-            <label class="small">Min rounds before batch analysis: <input id="minAnalysisCount" class="input" value="5" /></label>
-            <label class="small">Show last N rounds: <input id="showN" class="input" value="200" /></label>
-          </div>
-
-          <div class="small" style="margin-top:6px">Auto-analysis uses: Window(60s) + Cycle(11min) + Last 30 rounds combined (weighted). Popups appear after batch analysis to reduce noise.</div>
-        </div>
-
-        <div style="margin-top:12px">
-          <div class="small">Analytics (live)</div>
-          <div id="analytics" class="small">—</div>
-        </div>
-      </section>
-
-      <aside class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="small">Round history</div>
-          <div class="small">Errors: <span id="errCount">0</span></div>
-        </div>
-
-        <div id="history" class="history" aria-live="polite"></div>
-
-        <div style="margin-top:10px;display:flex;gap:8px">
-          <button id="undoBtn" class="small-btn">Undo last</button>
-          <button id="clearBtn" class="small-btn">Clear</button>
-          <button id="exportBtn" class="small-btn">Export CSV</button>
-        </div>
-
-        <div style="margin-top:8px" class="small">Tip: Click a round to remove it (confirm).</div>
-
-        <div style="margin-top:12px" class="small">Logs</div>
-        <div id="log" class="log"></div>
-      </aside>
-    </div>
-
-    <div class="footer">
-      <div class="small">Prototype — for analysis only. Not a betting guarantee.</div>
-      <div class="small">v1.1 • Local-only (GitHub Pages recommended)</div>
-    </div>
-  </div>
-
-  <!-- Popup (center) -->
-  <div id="popupWrap" style="display:none" aria-hidden="true">
-    <div class="popup-back">
-      <div class="popup" role="dialog" aria-modal="true" aria-label="Alert">
-        <div id="popupIcon" style="font-size:2.6rem">⚠️</div>
-        <h2 id="popupTitle">Alert</h2>
-        <div id="popupMsg" class="small">Message</div>
-        <div style="margin-top:12px">
-          <button id="dismissPopup" class="small-btn">Dismiss</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast" style="display:none"></div>
+<button onclick="predict()">Predict Next</button>
 
 <script>
-/* Aviator Analyzer — batch alert version (B)
-   - Batch analysis: waits until minAnalysisCount within 60s OR cycle-large sample
-   - Stable Web Speech usage with continuous re-start when AutoVoice ON
-   - Popup for SAFE/CAUTION/DANGER (and JACKPOT)
-   - Saves state in localStorage (rounds + beta)
-*/
+let history = [];
 
-(function(){
-  // ---------- state & storage ----------
-  const STORE = 'aviator_single_fixed_v1';
-  const state = {
-    rounds: [], // {id, ts, mult, source}
-    cycleLen: 660,
-    jackThresh: 10,
-    jackPopupThreshPct: 2.0,
-    showN: 200,
-    minAnalysisCount: 5,
-    learn: true,
-    autoVoice: false,
-    betaA: 1, betaB: 999,
-    cycleStartTs: Math.floor(Date.now()/1000)
-  };
+function predict() {
 
-  function load(){
-    try {
-      const s = localStorage.getItem(STORE);
-      if(s){ const j = JSON.parse(s); Object.assign(state, j); if(!state.rounds) state.rounds=[]; }
-    } catch(e){ console.warn('load err', e); }
-  }
-  function save(){ try{ const copy = { ...state, rounds: state.rounds.slice(-5000) }; localStorage.setItem(STORE, JSON.stringify(copy)); }catch(e){console.warn(e)} }
-
-  load();
-
-  // ---------- DOM ----------
-  const el = id => document.getElementById(id);
-  const cycleTimer = el('cycleTimer'), cycleIdEl = el('cycleId'), riskBadge = el('riskBadge'), riskDetail = el('riskDetail');
-  const jackProbEl = el('jackProb'), jackInfo = el('jackInfo'), analyticsEl = el('analytics'), historyEl = el('history');
-  const errCountEl = el('errCount'), statusLabel = el('statusLabel'), logEl = el('log');
-  const popupWrap = el('popupWrap'), popupTitle = el('popupTitle'), popupMsg = el('popupMsg'), popupIcon = el('popupIcon');
-
-  // ---------- helpers ----------
-  function uid(){ return Math.random().toString(36).slice(2,9); }
-  function now(){ return Date.now(); }
-  function formatT(ts){ return new Date(ts).toLocaleTimeString(); }
-  function log(message){ console.log(message); logEl.textContent = `[${new Date().toLocaleTimeString()}] ${message}\\n` + logEl.textContent; }
-  function toast(msg, ms=2500){ const t = el('toast'); t.textContent = msg; t.style.display='block'; setTimeout(()=> t.style.display='none', ms); }
-
-  // ---------- add / remove rounds ----------
-  function addRound(mult, source='manual', ts = now()){
-    const m = Number(mult);
-    if(Number.isNaN(m)) { toast('Invalid multiplier'); return; }
-    const rec = { id: uid(), ts, mult: m, source };
-    state.rounds.push(rec);
-    if(state.learn){
-      if(m >= state.jackThresh) state.betaA += 1; else state.betaB += 1;
-    }
-    if(state.rounds.length > 5000) state.rounds.shift();
-    save(); log(`Added ${m} (${source})`);
-    scheduleAnalysis(); render();
-  }
-
-  function removeById(id){
-    const idx = state.rounds.findIndex(r=>r.id===id);
-    if(idx===-1) return;
-    const [rem] = state.rounds.splice(idx,1);
-    if(state.learn){
-      if(rem.mult >= state.jackThresh && state.betaA>1) state.betaA -=1; else if(state.betaB>1) state.betaB -=1;
-    }
-    save(); render(); log(`Removed ${rem.mult}`);
-  }
-
-  function undoLast(){
-    const rem = state.rounds.pop();
-    if(!rem) return toast('No rounds to undo');
-    if(state.learn){
-      if(rem.mult >= state.jackThresh && state.betaA>1) state.betaA -=1; else if(state.betaB>1) state.betaB -=1;
-    }
-    save(); render(); log('Undo last: ' + rem.mult);
-  }
-
-  // ---------- analysis utilities ----------
-  function window60(){ const cutoff = now() - 60000; return state.rounds.filter(r=> r.ts >= cutoff); }
-  function cycleWindow(){ const cid = Math.floor((Math.floor(now()/1000) - state.cycleStartTs) / state.cycleLen); const cycleStart = (state.cycleStartTs + cid*state.cycleLen)*1000; const cycleEnd = cycleStart + state.cycleLen*1000; const rounds = state.rounds.filter(r=> r.ts >= cycleStart && r.ts < cycleEnd); return { cid, start: cycleStart, end: cycleEnd, rounds }; }
-  function lastN(n=30){ return state.rounds.slice(-n); }
-
-  function scoreFromArray(mults){
-    if(!mults || mults.length===0) return 0;
-    const freq = mults.filter(m=>m < 1.5).length / mults.length;
-    const s = mults.slice().sort((a,b)=>a-b); const median = s[Math.floor(s.length/2)] || 0;
-    const avg = mults.reduce((a,b)=>a+b,0)/mults.length;
-    const st = Math.sqrt(mults.reduce((a,b)=>a+Math.pow(b-avg,2),0)/mults.length);
-    let score = 0;
-    score += freq * 100 * 0.6;
-    score += Math.max(0, (2.0 - median)/2.0) * 100 * 0.3;
-    score += Math.min(1, st/3) * 100 * 0.1;
-    return Math.min(100, Math.round(score));
-  }
-
-  function assessCombined(){
-    // weights (tunable)
-    const wA = 0.5, wB = 0.3, wC = 0.2;
-    const arrA = window60().map(x=>x.mult);
-    const arrB = cycleWindow().rounds.map(x=>x.mult);
-    const arrC = lastN(30).map(x=>x.mult);
-    const aScore = scoreFromArray(arrA), bScore = scoreFromArray(arrB), cScore = scoreFromArray(arrC);
-    const combined = Math.min(100, Math.round(aScore*wA + bScore*wB + cScore*wC));
-    return { combined, aScore, bScore, cScore, counts: { a: arrA.length, b: arrB.length, c: arrC.length } };
-  }
-
-  function jackpotPct(){ const a = state.betaA, b = state.betaB; return (a / (a + b)) * 100; }
-
-  // ---------- Batch analysis & popup logic ----------
-  let analysisTimer = null;
-  let scheduled = false;
-  function scheduleAnalysis(){
-    // Analyze immediately but produce popup only when batch conditions met
-    if(scheduled) return;
-    scheduled = true;
-    // wait short debounce (500ms) to allow multiple quick entries
-    setTimeout(()=>{ scheduled=false; runAnalysis(); }, 500);
-  }
-
-  let lastPopupType = null;
-  function runAnalysis(){
-    try {
-      const res = assessCombined();
-      log(`Analysis: combined=${res.combined} (A:${res.aScore} B:${res.bScore} C:${res.cScore}) counts A=${res.counts.a} B=${res.counts.b}`);
-      // update UI
-      renderSummary(res);
-
-      // Batch condition: need at least minAnalysisCount in window OR enough in cycle OR last30 >= min
-      const minCount = Number(el('minAnalysisCount').value) || state.minAnalysisCount;
-      const condA = res.counts.a >= minCount;
-      const condB = res.counts.b >= minCount;
-      const condC = res.counts.c >= minCount;
-      if(!(condA || condB || condC)){
-        log('Batch condition not met yet — waiting for more data.');
+    let last = parseFloat(document.getElementById("multiplierInput").value);
+    if (isNaN(last)) {
+        alert("Weka number sahihi");
         return;
-      }
+    }
 
-      // Decide category
-      let category = 'SAFE';
-      if(res.combined > 70) category = 'DANGER';
-      else if(res.combined > 40) category = 'CAUTION';
-      else category = 'SAFE';
+    history.push(last);
 
-      // Jackpot check (higher priority): if jackpot percent >= threshold (user set)
-      const pct = jackpotPct();
-      const jackThresh = parseFloat(el('jackPopupThresh').value) || state.jackPopupThreshPct;
-      if(pct >= jackThresh){
-        // Show jackpot popup (distinct)
-        if(lastPopupType !== 'JACKPOT'){
-          showPopup('JACKPOT', `Jackpot probability ${pct.toFixed(2)}% ≥ ${jackThresh}% — recent rounds may indicate a jackpot soon.` , 'jack');
-          lastPopupType = 'JACKPOT';
-        } else {
-          log('Jackpot popup already shown recently; skipping duplicate.');
-        }
+    // --- Simple cycle behavior ---
+    let danger = last < 1.20;
+    let safe = last >= 1.20 && last <= 2.0;
+    let spike = last > 2.0;
+
+    // Jackpot chance random
+    let jackpotChance = Math.random();
+
+    //  ----- MAIN ALERT LOGIC -----
+
+    if (danger) {
+        alert("⚠️ DANGER ROUND → Usibet sasa!");
         return;
-      }
-
-      // Normal risk popup
-      // Avoid duplicate repeated popup flood: only show if category changed or if last popup too old
-      if(lastPopupType !== category){
-        // show popup
-        const msg = `Model assessed risk: ${category} (score ${res.combined}). A:${res.aScore} B:${res.bScore} C:${res.cScore}`;
-        showPopup(category, msg, category === 'DANGER' ? 'danger' : category === 'CAUTION' ? 'caution' : 'safe');
-        lastPopupType = category;
-      } else {
-        log('Category unchanged; no popup shown to avoid spam.');
-      }
-
-    } catch(e){ console.error('runAnalysis err', e); log('Analysis error: ' + e.message); }
-  }
-
-  // popup display
-  function showPopup(title, message, type='safe'){
-    popupTitle.textContent = title === 'JACKPOT' ? 'Jackpot Alert' : (title === 'DANGER' ? 'Danger' : title === 'CAUTION' ? 'Caution' : 'Safe');
-    popupMsg.textContent = message;
-    popupWrap.style.display = 'block';
-    popupIcon.textContent = type === 'danger' ? '🔥' : type === 'jack' ? '💥' : type === 'caution' ? '⚠️' : '✅';
-    // auto-dismiss after some time to avoid blocking (optional) — keep it manual for user control, but we'll auto-dismiss after 18s
-    setTimeout(()=>{ if(popupWrap.style.display==='block') dismissPopup(); }, 18000);
-    log('Popup shown: ' + title);
-    // also show small toast
-    toast(`${title} • ${message}`, 3500);
-  }
-  function dismissPopup(){ popupWrap.style.display='none'; lastPopupType = null; }
-
-  el('dismissPopup').addEventListener('click', ()=> dismissPopup());
-
-  // ---------- UI render ----------
-  function renderSummary(res){
-    const combined = res?.combined ?? assessCombined().combined;
-    const a = (res?.aScore ?? 0), b = (res?.bScore ?? 0), c = (res?.cScore ?? 0);
-    let label='SAFE', cls='safe';
-    if(combined > 70) { label='DANGER'; cls='danger'; }
-    else if(combined > 40) { label='CAUTION'; cls='caution'; }
-    else { label='SAFE'; cls='safe'; }
-    riskBadge.textContent = `${label} (${combined})`;
-    riskBadge.className = 'badge ' + cls;
-    riskDetail.textContent = `Window:${res.counts.a} Cycle:${res.counts.b} Last30:${res.counts.c} • A:${a} B:${b} C:${c}`;
-    const pct = jackpotPct();
-    jackProbEl.textContent = pct.toFixed(2) + '%';
-    jackInfo.textContent = `Beta(${state.betaA},${state.betaB})`;
-    const win = window60();
-    const avg = win.length ? (win.reduce((s,x)=>s+x.mult,0)/win.length).toFixed(2) : '—';
-    analyticsEl.textContent = `last60s count=${win.length} avg=${avg}`;
-  }
-
-  function render(){
-    // cycle timer
-    const len = Number(el('cycleLen').value) || state.cycleLen;
-    state.cycleLen = len;
-    const cid = Math.floor((Math.floor(now()/1000) - state.cycleStartTs) / state.cycleLen);
-    cycleIdEl.textContent = cid;
-    const cycleEndMs = ((state.cycleStartTs + (cid+1)*state.cycleLen) * 1000);
-    const leftMs = Math.max(0, cycleEndMs - now());
-    const mm = String(Math.floor(leftMs/60000)).padStart(2,'0');
-    const ss = String(Math.floor((leftMs%60000)/1000)).padStart(2,'0');
-    cycleTimer.textContent = `${mm}:${ss}`;
-
-    // history
-    historyEl.innerHTML = '';
-    const showN = Number(el('showN').value) || state.showN;
-    const recent = state.rounds.slice(-showN);
-    for(let i = recent.length-1; i>=0; i--){
-      const r = recent[i];
-      const d = document.createElement('div');
-      d.className = 'round ' + (r.mult >= state.jackThresh ? 'orange' : (r.mult >= 2 ? 'green' : 'red'));
-      d.textContent = `${r.mult.toFixed(2)}× ${formatT(r.ts)}`;
-      d.title = `Source: ${r.source}`;
-      d.onclick = ()=>{ if(confirm('Remove this round?')) removeById(r.id); };
-      historyEl.appendChild(d);
     }
 
-    // errors
-    const errMin = 1.0, errMax = 1.30;
-    const errors = state.rounds.filter(r=>r.mult >= errMin && r.mult < errMax).length;
-    errCountEl.textContent = errors;
-
-    // render summary
-    renderSummary(assessCombined());
-
-    save();
-  }
-
-  // ---------- SpeechRecognition (robust) ----------
-  let recog = null;
-  let recogActive = false;
-  let recogRestartTimer = null;
-  function initSpeech(){
-    try {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if(!SR) { log('SpeechRecognition unsupported in this browser.'); return; }
-      recog = new SR();
-      recog.lang = 'en-US';
-      recog.interimResults = false;
-      recog.maxAlternatives = 1;
-      recog.onstart = ()=> { recogActive = true; statusLabel.textContent = 'Listening (mic)'; log('Speech started'); }
-      recog.onresult = (ev)=> {
-        try {
-          const text = ev.results[0][0].transcript;
-          log('Speech result: ' + text);
-          // parse number (supports "two point five" not perfectly — numeric digits preferred)
-          const m = text.match(/(\\d+\\.\\d+|\\d+|\\d+\\s+point\\s+\\d+)/i);
-          if(m){
-            let found = m[0];
-            // handle "X point Y" words
-            if(/point/i.test(found) && /\\s/.test(found)){
-              found = found.replace(/\\s+point\\s+/i, '.');
-            }
-            const num = parseFloat(found);
-            if(!isNaN(num)){
-              addRound(num, 'voice');
-            } else {
-              toast('Voice recognized but number not parsed: ' + text, 2500);
-            }
-          } else {
-            toast('Voice recognized but no number found: ' + text, 2200);
-          }
-        } catch(e){ console.warn(e); }
-      };
-      recog.onend = ()=> {
-        recogActive = false; statusLabel.textContent = state.autoVoice ? 'AutoVoice (restarting)' : 'Idle';
-        log('Speech ended');
-        // if AutoVoice on, restart after short delay
-        if(state.autoVoice){
-          clearTimeout(recogRestartTimer);
-          recogRestartTimer = setTimeout(()=> {
-            try { recog.start(); } catch(e){ log('restart err: '+e.message); }
-          }, 300);
-        }
-      };
-      recog.onerror = (e)=> {
-        log('Speech error: ' + JSON.stringify(e));
-        recogActive = false;
-        statusLabel.textContent = 'Speech error';
-        // some errors should attempt restart if autoVoice
-        if(state.autoVoice){
-          clearTimeout(recogRestartTimer);
-          recogRestartTimer = setTimeout(()=> {
-            try { recog.start(); } catch(err){ log('restart err: '+err.message); }
-          }, 700);
-        }
-      };
-      log('SpeechRecognition initialized.');
-    } catch(e){ console.warn('initSpeech err', e); log('Speech init failed: ' + e.message); }
-  }
-
-  // mic UI
-  el('micBtn').addEventListener('click', ()=>{
-    if(!recog){ initSpeech(); if(!recog) return alert('SpeechRecognition not supported (use Chrome/Edge on HTTPS)'); }
-    try {
-      if(!recogActive){
-        recog.start();
-      } else {
-        recog.stop();
-      }
-    } catch(e){ console.warn(e); }
-  });
-
-  el('toggleAuto').addEventListener('click', ()=>{
-    state.autoVoice = !state.autoVoice;
-    el('toggleAuto').textContent = 'AutoVoice: ' + (state.autoVoice ? 'ON' : 'OFF');
-    if(state.autoVoice){
-      if(!recog) initSpeech();
-      try { if(recog && !recogActive) recog.start(); } catch(e){ log('auto start err: '+e.message); }
-    } else {
-      try { if(recog && recogActive) recog.stop(); } catch(e){} 
+    if (safe) {
+        alert("🟢 Safe Round → Bet ya kawaida");
     }
-    save();
-  });
 
-  // ---------- UI events ----------
-  el('addBtn').addEventListener('click', ()=>{ const v = el('manual').value.trim(); if(v){ addRound(parseFloat(v), 'manual'); el('manual').value=''; }});
-  el('manual').addEventListener('keyup', (e)=>{ if(e.key === 'Enter') el('addBtn').click(); });
-  el('undoBtn').addEventListener('click', ()=>{ if(confirm('Undo last?')) undoLast(); });
-  el('clearBtn').addEventListener('click', ()=>{ if(confirm('Clear history?')){ state.rounds=[]; state.betaA=1; state.betaB=999; save(); render(); log('Cleared history'); }});
-  el('exportBtn').addEventListener('click', ()=>{ exportCSV(); });
-  el('learnToggle').addEventListener('click', ()=>{ state.learn = !state.learn; el('learnToggle').textContent = 'Learn: ' + (state.learn? 'ON':'OFF'); save(); });
-  el('errorBtn').addEventListener('click', ()=>{ // remove oldest error
-    const errMin = 1.0, errMax = 1.30;
-    const idx = state.rounds.findIndex(r=> r.mult >= errMin && r.mult < errMax);
-    if(idx === -1) return alert('Hakuna error iliyopo kwenye history.');
-    const [removed] = state.rounds.splice(idx,1);
-    if(state.learn){
-      if(removed.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
-      else if(state.betaB>1) state.betaB -=1;
+    if (spike) {
+        alert("🟣 High Spike → Inaweza kurudi chini next round");
     }
-    save(); render(); alert('Error reset applied (one entry removed).');
-  });
 
-  function exportCSV(){
-    const rows = [['id','timestamp','mult','source']];
-    state.rounds.forEach(r=> rows.push([r.id, new Date(r.ts).toISOString(), r.mult, r.source]));
-    const csv = rows.map(r=> r.map(c=> `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\\n');
-    const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'aviator_history.csv'; a.click(); URL.revokeObjectURL(url);
-  }
-
-  // dismiss popup
-  el('dismissPopup').addEventListener('click', ()=> { dismissPopup(); });
-  function dismissPopup(){ popupWrap.style.display = 'none'; }
-
-  // ---------- analysis trigger (automatic every second, but popup controlled in runAnalysis) ----------
-  setInterval(()=> {
-    // periodic rendering & small auto-analysis for UI
-    render();
-  }, 1000);
-
-  // schedule initial speech init if autoVoice true
-  if(state.autoVoice) { el('toggleAuto').textContent = 'AutoVoice: ON'; initSpeech(); try{ if(recog) recog.start(); }catch(e){ log('auto start failed: '+e.message); } }
-  else el('toggleAuto').textContent = 'AutoVoice: OFF';
-
-  // explicit scheduleAnalysis called from addRound; also run analysis on interval for safety
-  setInterval(()=> { runAnalysis(); }, 3000);
-
-  // ---------- initial render ----------
-  render();
-  log('Aviator Analyzer ready.');
-
-  // expose for debug
-  window.aviator = { state, addRound, undoLast, removeById, runAnalysis, showPopup, dismissPopup };
-
-})(); // IIFE end
+    // Jackpot 4% probability
+    if (jackpotChance < 0.04) {
+        alert("💥 JACKPOT INAKARIBIA! Cashout early!");
+    }
+}
 </script>
+
 </body>
 </html>
