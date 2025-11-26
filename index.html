@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="sw">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aviator Analyzer — Prototype</title>
+  <style>
+    :root{
+      --bg:#0f1724; --panel:#0b1220; --accent:#06b6d4; --danger:#ef4444; --ok:#10b981; --jack:#f97316; --muted:#94a3b8;
+    }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:linear-gradient(180deg,#041423,#071927);color:#e6eef6;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;}
+    .app{width:100%;max-width:1100px;background:var(--panel);border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(2,6,23,.6);}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+    .title{font-size:1.1rem;font-weight:700;}
+    .cycle{font-size:.95rem;color:var(--muted);}
+    .main{display:grid;grid-template-columns:1fr 320px;gap:12px;}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:10px;}
+    .big-risk{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:8px;}
+    .badge{font-weight:700;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.03);}
+    .controls{display:flex;flex-direction:column;gap:8px;}
+    .row{display:flex;gap:8px;align-items:center;}
+    button{background:var(--accent);border:0;padding:8px 10px;border-radius:8px;color:#052026;cursor:pointer;font-weight:700;}
+    .mic{background:#05324a;padding:10px;border-radius:10px;color:#bff3fb;border:2px solid rgba(255,255,255,0.03);display:flex;gap:8px;align-items:center;}
+    .toggle{font-size:.75rem;padding:4px 8px;border-radius:6px;background:#0b2a30;}
+    input[type="text"]{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit;}
+    .history{max-height:220px;overflow:auto;padding:8px;display:flex;flex-wrap:wrap;gap:6px;}
+    .round{padding:6px 8px;border-radius:6px;font-weight:700;background:rgba(255,255,255,0.02);}
+    .red{background:rgba(255,55,55,0.12);color:#ffc9c9}
+    .green{background:rgba(34,197,94,0.10);color:#d3ffea}
+    .orange{background:rgba(249,115,22,0.10);color:#ffe6d0}
+    .small{font-size:.8rem;color:var(--muted);}
+    .controls .hint{font-size:.8rem;color:var(--muted)}
+    .danger{color:var(--danger);font-weight:800}
+    .ok{color:var(--ok);font-weight:800}
+    .jack{color:var(--jack);font-weight:800}
+    .floating-undo{position:sticky;top:8px;margin-bottom:8px;display:flex;justify-content:flex-end;}
+    footer{margin-top:12px;font-size:.8rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Aviator Analyzer Prototype">
+    <header>
+      <div>
+        <div class="title">Aviator Analyzer — Prototype</div>
+        <div class="cycle small">Cycle (11:00): <span id="cycleTimer">--:--</span> • Cycle ID: <span id="cycleId">--</span></div>
+      </div>
+      <div id="status" class="small">Disconnected</div>
+    </header>
+
+    <div class="main">
+      <section class="card">
+        <div class="big-risk">
+          <div>
+            <div class="small">Risk Assessment</div>
+            <div style="font-size:1.6rem;font-weight:900" id="riskLabel">--</div>
+            <div class="small" id="riskDetail">--</div>
+          </div>
+          <div style="text-align:right">
+            <div class="small">Jackpot Prob (next round)</div>
+            <div style="font-size:1.6rem;font-weight:900" id="jackProb">--%</div>
+            <div class="small" id="jackDetail">Prior: Beta(1,999)</div>
+          </div>
+        </div>
+
+        <hr style="opacity:.06;margin:12px 0">
+
+        <div class="controls">
+          <div class="row">
+            <button id="micBtn" class="mic" title="Use mic to add multiplier">🎙️ <span id="micLabel">Mic</span></button>
+            <button id="toggleAuto" class="toggle" title="Toggle automatic voice input">Auto: OFF</button>
+            <button id="errorReset" title="Reset one error" style="background:#2b2730;color:#fff">Error Reset</button>
+          </div>
+
+          <div class="row" style="margin-top:6px">
+            <input id="manualInput" type="text" placeholder="Enter multiplier e.g. 1.37 or 12.00 then Enter" aria-label="Manual multiplier input">
+            <button id="addBtn">Add</button>
+          </div>
+
+          <div class="row small">
+            <div class="hint">Learn Mode: <label><input type="checkbox" id="learnMode" checked> ON</label></div>
+            <div style="flex:1"></div>
+            <div class="hint">Use server time: <label><input type="checkbox" id="useServerTime"></label></div>
+          </div>
+
+          <div style="margin-top:8px">
+            <div class="small">Analytics (last 60s window):</div>
+            <div class="small" id="analytics">—</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="floating-undo"><button id="undoBtn" style="background:#3b3b3b;color:#fff">Undo last</button></div>
+          <div class="small">Round history (bottom). Click any round to remove it.</div>
+        </div>
+      </section>
+
+      <aside class="card" style="height:100%">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="small">History (last 500)</div>
+          <div class="small">Errors: <span id="errorCount">0</span></div>
+        </div>
+
+        <div id="history" class="history" aria-live="polite" style="margin-top:8px"></div>
+
+        <hr style="opacity:.06;margin:12px 0">
+
+        <div class="small">Config</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+          <label class="small">Cycle length (seconds): <input id="cycleLen" type="number" value="660" style="width:100px"></label>
+          <label class="small">Jackpot threshold (x): <input id="jackThresh" type="number" value="10" style="width:100px"></label>
+          <label class="small">Error range (min-max): <input id="errMin" type="number" value="1" style="width:60px"> - <input id="errMax" type="number" value="1.3" style="width:60px"></label>
+          <label class="small">Show last N rounds: <input id="showN" type="number" value="200" style="width:80px"></label>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      <div>Prototype — not for betting guarantees. Logs stored locally & optionally on server.</div>
+      <div>Version 0.9</div>
+    </footer>
+  </div>
+
+<script>
+/* ---------------------------
+  Simple frontend logic:
+  - maintains rounds array in localStorage
+  - computes analytics (last 60s window)
+  - simple Beta update for jackpot probability
+  - SpeechRecognition to parse numbers
+  - WebSocket to backend optional
+----------------------------*/
+(function(){
+  const state = {
+    rounds: [], // {id, ts, mult, source}
+    cycleLen: 660,
+    jackThresh: 10,
+    errMin: 1.0,
+    errMax: 1.3,
+    showN: 200,
+    learnMode: true,
+    autoVoice: false,
+    serverConnected: false,
+    betaA: 1, betaB: 999, // prior
+  };
+
+  // DOM
+  const el = id => document.getElementById(id);
+  const historyEl = el('history'), riskLabel = el('riskLabel'), jackProb = el('jackProb'),
+        cycleTimer = el('cycleTimer'), cycleIdEl = el('cycleId'), statusEl = el('status'),
+        analyticsEl = el('analytics'), errorCountEl = el('errorCount');
+
+  // load config
+  function loadState(){
+    try {
+      const raw = localStorage.getItem('aviator_state_v1');
+      if(raw) {
+        const s = JSON.parse(raw);
+        state.rounds = s.rounds || [];
+        state.betaA = s.betaA ?? state.betaA;
+        state.betaB = s.betaB ?? state.betaB;
+      }
+    } catch(e){ console.warn(e); }
+    // UI fields
+    el('cycleLen').value = state.cycleLen;
+    el('jackThresh').value = state.jackThresh;
+    el('errMin').value = state.errMin;
+    el('errMax').value = state.errMax;
+    el('showN').value = state.showN;
+    el('learnMode').checked = state.learnMode;
+    el('toggleAuto').textContent = 'Auto: OFF';
+  }
+  loadState();
+
+  function saveState(){
+    const toSave = { rounds: state.rounds, betaA: state.betaA, betaB: state.betaB };
+    localStorage.setItem('aviator_state_v1', JSON.stringify(toSave));
+  }
+
+  // Helpers
+  function nowTs(){ return Date.now(); }
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+  function formatTime(ts){
+    const d = new Date(ts);
+    return d.toLocaleTimeString();
+  }
+
+  // Add round
+  function addRound(mult, source='manual', ts = nowTs()){
+    const m = Number(mult);
+    if (Number.isNaN(m)) return;
+    const r = { id: uid(), ts, mult: m, source };
+    state.rounds.push(r);
+    if (state.learnMode) {
+      // update jackpot beta if meets jackpot threshold (we consider each round a trial)
+      if (m >= state.jackThresh) {
+        state.betaA += 1;
+      } else {
+        state.betaB += 1;
+      }
+    }
+    // cap history
+    if (state.rounds.length > 5000) state.rounds.shift();
+    saveState();
+    render();
+    // optionally send to server
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type:'round',payload:r}));
+    }
+  }
+
+  // Remove last round (undo)
+  function undoLast(){
+    const r = state.rounds.pop();
+    if(!r) return;
+    // if learned, roll back beta update if within counts (best-effort)
+    if (r.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
+    else if (state.betaB>1) state.betaB -=1;
+    saveState();
+    render();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type:'undo',payload:{id:r.id}}));
+    }
+  }
+
+  // Remove arbitrary round
+  function removeRoundById(id){
+    const idx = state.rounds.findIndex(r=>r.id===id);
+    if(idx===-1) return;
+    const [r] = state.rounds.splice(idx,1);
+    // best-effort rollback
+    if (r.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
+    else if (state.betaB>1) state.betaB -=1;
+    saveState(); render();
+  }
+
+  // Analytics: last 60s window
+  function computeAnalytics(){
+    const cutoff = nowTs() - 60000;
+    const window = state.rounds.filter(r=>r.ts >= cutoff);
+    if(window.length===0) return {count:0, freqCrash:0, avg:0, median:0, stdev:0, lastJack: null};
+    const mults = window.map(w=>w.mult).sort((a,b)=>a-b);
+    const avg = mults.reduce((a,b)=>a+b,0)/mults.length;
+    const median = mults[Math.floor(mults.length/2)] ?? avg;
+    const freqCrash = mults.filter(m=>m < 1.5).length / mults.length;
+    const stdev = Math.sqrt(mults.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/mults.length);
+    const lastJack = state.rounds.slice().reverse().find(r=>r.mult >= state.jackThresh);
+    return {count: window.length, freqCrash, avg, median, stdev, lastJack};
+  }
+
+  // Risk scoring (simple weighted)
+  function computeRisk(){
+    const a = computeAnalytics();
+    if(a.count === 0) return {score:0,label:'NO DATA',detail:'No recent rounds'};
+    // weights
+    const wFreq = 60, wMed = 20, wSt = 20;
+    // normalize median to [0,1] with target 2.0 (higher median => lower risk)
+    const medNorm = Math.max(0, Math.min(1, (2.0 - a.median) / 1.5)); // median<2 increase risk
+    // stdev normalized
+    const stNorm = Math.min(1, a.stdev / 3);
+    const score = Math.min(100, Math.round((a.freqCrash * wFreq + medNorm * wMed + stNorm * wSt) ));
+    let label = 'SAFE', cls = 'ok';
+    if(score > 70) {label='DANGER'; cls='danger'} else if(score>40){label='CAUTION'; cls='small'};
+    const detail = `last60s count=${a.count}, crashes<1.5=${Math.round(a.freqCrash*100)}%, median=${a.median.toFixed(2)}`;
+    return {score, label, detail, cls};
+  }
+
+  // Jackpot probability (Beta posterior mean)
+  function jackpotProb(){
+    const a = state.betaA, b = state.betaB;
+    const mean = (a) / (a + b);
+    return {pct: (mean*100).toFixed(2), a, b};
+  }
+
+  // Render UI
+  function render(){
+    // history
+    historyEl.innerHTML = '';
+    const show = Number(el('showN').value) || state.showN;
+    const recent = state.rounds.slice(-show);
+    for (let i = recent.length-1; i>=0; i--){
+      const r = recent[i];
+      const node = document.createElement('div');
+      node.className = 'round';
+      if (r.mult < 2) node.classList.add('red');
+      else if (r.mult >= state.jackThresh) node.classList.add('orange');
+      else node.classList.add('green');
+      node.textContent = `${r.mult.toFixed(2)}× ${formatTime(r.ts)}`;
+      node.title = `Source: ${r.source}`;
+      node.onclick = ()=>{ if(confirm('Remove this round?')) removeRoundById(r.id); };
+      historyEl.appendChild(node);
+    }
+
+    // risk & jack
+    const risk = computeRisk();
+    riskLabel.textContent = `${risk.label} (${risk.score})`;
+    riskDetail.textContent = risk.detail;
+    const j = jackpotProb();
+    jackProb.textContent = `${j.pct}%`;
+    el('jackDetail').textContent = `Beta(${j.a},${j.b}) • last jack: ${state.rounds.slice().reverse().find(r=>r.mult>=state.jackThresh)?.mult ?? '—'}`;
+    // analytics small
+    const an = computeAnalytics();
+    analyticsEl.textContent = `count=${an.count} • crashes<1.5=${Math.round(an.freqCrash*100)}% • avg=${an.avg?an.avg.toFixed(2):'—'}`;
+    // errors
+    const errMin = Number(el('errMin').value), errMax = Number(el('errMax').value);
+    const errors = state.rounds.filter(r=>r.mult >= errMin && r.mult < errMax).length;
+    errorCountEl.textContent = errors;
+    // status
+    statusEl.textContent = ws && ws.readyState===WebSocket.OPEN ? 'Connected (server)' : 'Local';
+  }
+
+  // cycle timer
+  function computeCycle(){
+    const len = Number(el('cycleLen').value) || 660;
+    state.cycleLen = len;
+    const ts = nowTs();
+    // cycle id = floor(ts/len)
+    const cid = Math.floor(ts/1000 / len);
+    cycleIdEl.textContent = cid;
+    // time left = ( (cid+1)*len*1000 - ts)
+    const left = ((cid+1) * len * 1000) - ts;
+    const mm = String(Math.floor(left/60000)).padStart(2,'0');
+    const ss = String(Math.floor((left%60000)/1000)).padStart(2,'0');
+    cycleTimer.textContent = `${mm}:${ss}`;
+  }
+
+  // Event bindings
+  el('addBtn').addEventListener('click', ()=>{ const v = el('manualInput').value.trim(); if(v) { addRound(parseFloat(v), 'manual'); el('manualInput').value=''; }});
+  el('manualInput').addEventListener('keyup', (e)=>{ if(e.key==='Enter'){ el('addBtn').click(); }});
+  el('undoBtn').addEventListener('click', ()=>{ if(confirm('Undo last round?')) undoLast(); });
+
+  el('cycleLen').addEventListener('change', ()=>{ state.cycleLen = Number(el('cycleLen').value); saveState(); });
+  el('jackThresh').addEventListener('change', ()=>{ state.jackThresh = Number(el('jackThresh').value); saveState(); render(); });
+  el('errMin').addEventListener('change', render); el('errMax').addEventListener('change', render);
+  el('showN').addEventListener('change', render);
+  el('learnMode').addEventListener('change', ()=>{ state.learnMode = el('learnMode').checked; });
+  el('toggleAuto').addEventListener('click', ()=>{
+    state.autoVoice = !state.autoVoice; el('toggleAuto').textContent = `Auto: ${state.autoVoice ? 'ON':'OFF'}`;
+  });
+
+  el('errorReset').addEventListener('click', ()=>{
+    const errMin = Number(el('errMin').value), errMax = Number(el('errMax').value);
+    const idx = state.rounds.slice().reverse().findIndex(r=>r.mult >= errMin && r.mult < errMax);
+    if(idx === -1){ alert('Hakuna error iliyopo kwenye history.'); return; }
+    const idxReal = state.rounds.length - 1 - idx;
+    const [removed] = state.rounds.splice(idxReal,1);
+    // best-effort rollback
+    if (removed.mult >= state.jackThresh && state.betaA>1) state.betaA -=1;
+    else if (state.betaB>1) state.betaB -=1;
+    saveState(); render();
+  });
+
+  // periodic updates
+  setInterval(()=>{ computeCycle(); render(); }, 900);
+
+  // SpeechRecognition (Web Speech API)
+  let recog=null;
+  try {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(SpeechRecognition){
+      recog = new SpeechRecognition();
+      recog.lang = 'en-US';
+      recog.interimResults = false;
+      recog.maxAlternatives = 1;
+      recog.onresult = (ev)=>{
+        const text = ev.results[0][0].transcript;
+        // extract number with optional "x"
+        const m = text.match(/(\d+(\.\d+)?)/);
+        if(m){
+          const num = parseFloat(m[1]);
+          addRound(num, 'voice');
+          if(!state.autoVoice){
+            alert('Detected multiplier: ' + num);
+          }
+        } else {
+          console.log('Voice not parsed:', text);
+        }
+      };
+      recog.onerror = (e)=>{ console.warn('Speech error',e); };
+    }
+  } catch(e){ console.warn('Speech API not available',e); }
+
+  // mic button
+  el('micBtn').addEventListener('click', ()=>{
+    if(!recog){ alert('SpeechRecognition not supported in this browser. Use Chrome/Edge on desktop or Android.'); return; }
+    try {
+      recog.start();
+      el('micLabel').textContent = 'Listening...';
+      setTimeout(()=>{ el('micLabel').textContent = 'Mic'; }, 4000);
+    } catch(e){ console.warn(e); }
+  });
+
+  // Keyboard shortcuts (optional)
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'z' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); undoLast(); }
+  });
+
+  // WebSocket client to backend (optional)
+  let ws = null;
+  function connectWS(){
+    try {
+      ws = new WebSocket((location.hostname? (location.protocol==='https:'?'wss://':'ws://') + location.hostname + ':3000' : 'ws://localhost:3000'));
+      ws.onopen = ()=>{ console.log('ws open'); statusEl.textContent = 'Connected (server)'; };
+      ws.onmessage = (ev)=> {
+        try {
+          const data = JSON.parse(ev.data);
+          if(data.type === 'round'){
+            // incorporate round from server if not present
+            if(!state.rounds.find(r=>r.id===data.payload.id)){
+              state.rounds.push(data.payload);
+              saveState(); render();
+            }
+          } else if(data.type === 'sync'){
+            // server sends full history
+            // best-effort merge
+            const remote = data.payload || [];
+            remote.forEach(r=>{ if(!state.rounds.find(x=>x.id===r.id)) state.rounds.push(r); });
+            saveState(); render();
+          }
+        } catch(e){ console.warn(e); }
+      };
+      ws.onclose = ()=>{ statusEl.textContent='Local'; console.log('ws closed'); };
+    } catch(e){ console.warn('ws fail', e); statusEl.textContent='Local'; }
+  }
+
+  // attempt connect once
+  setTimeout(connectWS, 800);
+
+  // initial render
+  render();
+
+  // Expose for debugging
+  window.aviator = { state, addRound, undoLast, removeRoundById, render };
+})();
+</script>
+</body>
+</html>
