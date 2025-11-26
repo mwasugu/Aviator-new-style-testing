@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviator AI Predictor Pro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f1923; /* Aviator Dark Blue */
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #1b262c;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(227, 42, 42, 0.2);
+        }
+        h1 { color: #e91e63; }
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        input {
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e91e63;
+            background: #0f1923;
+            color: #fff;
+            font-size: 18px;
+            width: 100px;
+            text-align: center;
+        }
+        button {
+            padding: 15px 30px;
+            border-radius: 10px;
+            border: none;
+            background: #e91e63;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover { background: #c2185b; }
+        
+        /* Dashboard Cards */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .card {
+            background: #253238;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #e91e63;
+        }
+        .card h3 { margin: 0; font-size: 14px; color: #b0bec5; }
+        .card p { margin: 5px 0 0; font-size: 20px; font-weight: bold; }
+        
+        .prediction-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(45deg, #1b262c, #263238);
+            border: 1px solid #e91e63;
+            border-radius: 10px;
+        }
+        .status-safe { color: #00e676; }
+        .status-risk { color: #ff1744; }
+        
+        .history-log {
+            margin-top: 20px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 14px;
+            text-align: left;
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .log-item { padding: 5px; border-bottom: 1px solid #333; }
+        .multiplier-high { color: #d500f9; } /* Pink */
+        .multiplier-mid { color: #76ff03; } /* Green */
+        .multiplier-low { color: #2979ff; } /* Blue */
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 Aviator AI Predictor</h1>
+    <p>Ingiza matokeo ya <i>live</i> ili AI ijifunze:</p>
+
+    <div class="input-group">
+        <input type="number" id="multiplierInput" placeholder="1.00" step="0.01">
+        <button onclick="processData()">WEKA</button>
+    </div>
+
+    <div class="prediction-box">
+        <h3>🤖 Utabiri wa Raundi Ijayo:</h3>
+        <h2 id="predictionText">-- Inasubiri Data --</h2>
+        <p id="confidenceLevel">Usahihi wa AI (Accuracy): 50%</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3>Jackpot Prob (>10x)</h3>
+            <p id="jackpotProb">0%</p>
+        </div>
+        <div class="card">
+            <h3>Average Trend</h3>
+            <p id="avgTrend">0.00x</p>
+        </div>
+        <div class="card">
+            <h3>Next Safety Point</h3>
+            <p id="safetyPoint">--</p>
+        </div>
+        <div class="card">
+            <h3>Algorithm Status</h3>
+            <p id="algoStatus" style="font-size: 14px;">Initializing...</p>
+        </div>
+    </div>
+
+    <h3>📜 Historia (Last 10)</h3>
+    <div class="history-log" id="historyLog">
+        </div>
+</div>
+
+<script>
+    // --- Mfumo wa Akili (Logic) ---
+    let history = [];
+    let predictions = []; // Kuhifadhi utabiri uliopita ili kusahihisha
+    let aiAccuracy = 50; // Huanza 50%
+    let totalPredictions = 0;
+    let correctPredictions = 0;
+
+    function processData() {
+        const input = document.getElementById('multiplierInput');
+        const val = parseFloat(input.value);
+
+        if (isNaN(val) || val < 1) {
+            alert("Tafadhali weka namba sahihi (mfano: 1.20)");
+            return;
+        }
+
+        // 1. Sahihisha Utabiri Uliopita (Self-Correction)
+        if (predictions.length > 0) {
+            let lastPred = predictions[predictions.length - 1];
+            // Kama tulitabiri SALAMA na ikatoka > 1.50, tumepatia
+            // Kama tulitabiri HATARI na ikatoka < 1.50, tumepatia pia
+            let wasSafe = val >= 1.50;
+            let predictedSafe = lastPred.type === 'SAFE';
+
+            if (wasSafe === predictedSafe) {
+                correctPredictions++;
+                aiAccuracy = Math.min(99, aiAccuracy + 2); // Ongeza uhakika
+            } else {
+                aiAccuracy = Math.max(10, aiAccuracy - 2); // Punguza uhakika
+            }
+        }
+
+        // 2. Hifadhi Data
+        history.push(val);
+        if (history.length > 50) history.shift(); // Weka max 50
+        
+        // 3. Chora kwenye Log
+        updateLog(val);
+        
+        // 4. Fanya Utabiri Mpya
+        analyzeAndPredict();
+
+        // Safisha input
+        input.value = '';
+        input.focus();
+    }
+
+    function analyzeAndPredict() {
+        // Kokotoa Wastani wa 5 za mwisho
+        let last5 = history.slice(-5);
+        let sum = last5.reduce((a, b) => a + b, 0);
+        let avg = (sum / last5.length) || 0;
+
+        // Kokotoa Jackpot Probability
+        let jackpots = history.filter(x => x >= 10.00).length;
+        let prob = (jackpots / history.length) * 100;
+        
+        // --- LOGIC YA UTABIRI (CORE ALGORITHM) ---
+        let prediction = "";
+        let colorClass = "";
+        let advice = "";
+        let safetyExit = 0;
+
+        // Pattern Logic
+        if (last5.length < 3) {
+            prediction = "Kusanya Data...";
+            colorClass = "gray";
+        } else {
+            // Mkakati: Recovery (Baada ya losses ndogo)
+            let smallMultipliers = last5.filter(x => x < 1.20).length;
+            
+            if (smallMultipliers >= 2) {
+                prediction = "✅ SALAMA (Recovery)";
+                colorClass = "status-safe";
+                safetyExit = 1.80; // Target
+                advice = "SAFE";
+            } 
+            // Mkakati: Danger (Baada ya ushindi mkubwa)
+            else if (avg > 4.00) {
+                prediction = "⚠️ HATARI (Subiri)";
+                colorClass = "status-risk";
+                safetyExit = 1.10; // Run away
+                advice = "RISK";
+            }
+            // Mkakati: Normal
+            else {
+                prediction = "⚖️ KAWAIDA (Risk 50/50)";
+                colorClass = "white";
+                safetyExit = 1.40;
+                advice = "NORMAL";
+            }
+        }
+
+        // Hifadhi utabiri huu kwa ajili ya kusahihisha raundi ijayo
+        predictions.push({ type: advice, target: safetyExit });
+        totalPredictions++;
+
+        // Update UI
+        document.getElementById('predictionText').innerText = prediction;
+        document.getElementById('predictionText').className = colorClass;
+        
+        // Update Accuracy Display
+        let displayAcc = totalPredictions > 0 
+            ? ((correctPredictions / totalPredictions) * 100).toFixed(1) 
+            : 50.0;
+        document.getElementById('confidenceLevel').innerText = `AI Accuracy: ${displayAcc}% (Learning...)`;
+
+        document.getElementById('jackpotProb').innerText = `${prob.toFixed(1)}%`;
+        document.getElementById('avgTrend').innerText = `${avg.toFixed(2)}x`;
+        document.getElementById('safetyPoint').innerText = safetyExit > 0 ? `${safetyExit}x` : "--";
+
+        // Logic Status
+        let status = "Scanning...";
+        if (displayAcc > 60) status = "🔥 AI is Hot (High Accuracy)";
+        else if (displayAcc < 40) status = "❄️ AI is Cooling (Adjusting)";
+        else status = "🟢 Learning Mode";
+        document.getElementById('algoStatus').innerText = status;
+    }
+
+    function updateLog(val) {
+        let logDiv = document.getElementById('historyLog');
+        let item = document.createElement('div');
+        item.className = "log-item";
+        
+        let color = "multiplier-low";
+        if (val >= 2.00 && val < 10.00) color = "multiplier-mid";
+        if (val >= 10.00) color = "multiplier-high";
+        
+        item.innerHTML = `<span class="${color}">${val.toFixed(2)}x</span> - ${new Date().toLocaleTimeString()}`;
+        logDiv.prepend(item);
+    }
+</script>
+
+</body>
+</html>
