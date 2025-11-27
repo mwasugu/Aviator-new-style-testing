@@ -314,11 +314,19 @@
 
         // --- CORE FUNCTIONS ---
         
+        /**
+         * Calculates the time duration (in seconds) the plane took to reach the multiplier,
+         * plus the fixed 6 seconds for the preparation phase.
+         */
         function calculateRoundDuration(multiplier) {
             const crushTime = multiplier * CRUSH_TIME_FACTOR; 
             return crushTime + PREPARATION_TIME_SECONDS; 
         }
         
+        /**
+         * Calculates the total elapsed synthetic time from the history, then finds the position
+         * within the current Cycle (0 to CYCLE_SECONDS - 1).
+         */
         function getCurrentCyclePosition() {
             let totalSyntheticSeconds = 0;
             for (let i = history.length - 1; i >= 0; i--) {
@@ -336,7 +344,7 @@
                 CYCLE_SECONDS = minutes * 60;
             }
             assessRiskByTime(getCurrentCyclePosition()); 
-            logStatusEl.textContent = `Cycle Time Sasa: ${CYCLE_SECONDS / 60} Dakika.`;
+            logStatusEl.textContent = `Cycle Time Sasa: ${CYCLE_SECONDS / 60} Dakita.`;
         }
 
         function resetSystem(fullReset = true) {
@@ -370,26 +378,4 @@
                 `Raundi: ${attempts} | Makosa (< ${ERROR_THRESHOLD}x): ${mistakes} (${errorPercent}%)`;
             
             localStorage.setItem('aviator_attempts', attempts);
-            localStorage.setItem('aviator_mistakes', mistakes);
-
-            checkForAutoReset(); 
-        }
-
-        function getZone(multiplier) {
-            if (multiplier >= 10.00) return 'Orange Zone (Jackpot)';
-            if (multiplier >= ERROR_THRESHOLD) return 'Green Zone'; 
-            return 'Red Zone';
-        }
-
-        function getZoneClass(multiplier) {
-            if (multiplier >= 10.00) return 'orange';
-            if (multiplier >= ERROR_THRESHOLD) return 'green';
-            return 'red';
-        }
-        
-        function formatTime(date) {
-            return date.toLocaleTimeString('en-US', { hour12: false });
-        }
-        
-        function formatCycleTime(cycleSeconds) {
-            const minutes = Math.floor(cycleSeconds /
+            localStorage.setItem('aviator
