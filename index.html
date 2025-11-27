@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aviator Learning Log (Custom Cycles & Alerts - Stable)</title>
+    <title>Aviator Learning Log (Auto-Optimal Cycle & Neutral Alerts)</title>
     <style>
         /* CSS YA UREMBO */
         body {
@@ -36,10 +36,10 @@
             font-weight: bold;
             color: #bdbdbd;
         }
-        input[type="number"], select {
+        input[type="number"] {
             width: calc(100% - 22px);
             padding: 12px;
-            margin-bottom: 0;
+            margin-bottom: 10px;
             border-radius: 8px;
             border: 1px solid #333;
             background-color: #2c2c2c;
@@ -70,7 +70,16 @@
         }
         #logButton:hover { background-color: #4dd0e1; }
         
-        /* ACTION BUTTONS IN HISTORY LOG (Moved Up) */
+        #calculateOptimalBtn { /* NEW BUTTON STYLE */
+            background-color: #8BC34A; /* Green for calculation */
+            color: #1a1a1a;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #calculateOptimalBtn:hover { background-color: #A5D6A7; }
+
+
+        /* ACTION BUTTONS IN HISTORY LOG */
         .history-actions {
             display: flex;
             gap: 10px;
@@ -170,7 +179,7 @@
         .zone-status.green { color: #8BC34A; }
         .zone-status.orange { color: #FF9800; }
 
-        /* RISK ASSESSMENT ALERTS (Split and stable logic) */
+        /* RISK ASSESSMENT ALERTS (Neutralized) */
         #riskAssessmentContainer {
             margin-top: 15px;
         }
@@ -182,20 +191,10 @@
             text-align: center;
             font-size: 16px;
             border: 1px solid #333;
-        }
-        #jackpotAlert {
             background-color: #333;
-            color: #4CAF50;
-            border: 1px solid #4CAF50;
+            color: #FFC107; /* Default Neutral Color */
+            border-color: #555;
         }
-        #generalRiskAlert {
-            background-color: #333;
-            color: #fff;
-            border: 1px solid #E57373;
-        }
-        .high-risk { background-color: #E57373 !important; color: white !important; border-color: #F44336 !important;}
-        .jackpot-coming { background-color: #FF9800 !important; color: #1a1a1a !important; border-color: #FFB74D !important; } /* Orange/Yellow for Jackpot */
-
 
         #resetWarning {
             background-color: #FF0000;
@@ -233,12 +232,11 @@
     <div class="container">
         <h1>📊 Aviator Learning Log</h1>
 
-        <label for="cycleSelect">Seti ya Muda wa Mzunguko (Cycle):</label>
-        <select id="cycleSelect">
-            <option value="720">Short Cycle (Dakika 12)</option>
-            <option value="1200">Long Cycle (Dakika 20)</option>
-        </select>
+        <label for="cycleInput">Seti ya Muda wa Mzunguko (Dakika):</label>
+        <input type="number" id="cycleInput" value="12" step="1" min="1">
         
+        <button id="calculateOptimalBtn">Piga Hesabu Muda Mpya (Optimal Cycle)</button>
+
         <div id="timeContainer">
             <div id="cycleTimeDisplay">--:--</div>
             <div id="clockDisplay">--:--:--</div>
@@ -261,8 +259,8 @@
 
         <div id="results" class="result-box">
             <div id="riskAssessmentContainer">
-                <div class="risk-alert" id="jackpotAlert">💰 Jackpot Alert: Inachambua...</div>
-                <div class="risk-alert" id="generalRiskAlert">🚨 General Risk: Inachambua...</div>
+                <div class="risk-alert" id="jackpotAlert">💰 Jackpot Alert: Inajumlisha tu (Neutral)</div>
+                <div class="risk-alert" id="generalRiskAlert">🚨 General Risk: Inajumlisha tu (Neutral)</div>
             </div>
             
             <div class="zone-status" id="zoneStatus">Tayari Kuandikisha Matokeo. Kosa: <span style="color: #FFC107;">&lt; 1.30x</span></div>
@@ -289,8 +287,8 @@
 
     <script>
         // --- GLOBAL VARIABLES ---
-        let CYCLE_SECONDS = 720; // Default: 12 minutes
-        const ERROR_THRESHOLD = 1.30; // FIXED at 1.30x
+        let CYCLE_SECONDS = 720; 
+        const ERROR_THRESHOLD = 1.30; 
         const MIN_ATTEMPTS_FOR_RESET = 30; 
         const MISTAKE_PERCENTAGE_RESET = 0.35; 
         
@@ -307,11 +305,12 @@
         const logButton = document.getElementById('logButton'); 
         const deleteLastBtn = document.getElementById('deleteLastBtn');
         const deleteLastErrorBtn = document.getElementById('deleteLastErrorBtn'); 
+        const calculateOptimalBtn = document.getElementById('calculateOptimalBtn'); // NEW
         const micBtn = document.getElementById('micBtn');
         const autoSubmitToggle = document.getElementById('autoSubmitToggle'); 
         const clockDisplay = document.getElementById('clockDisplay');
         const cycleTimeDisplay = document.getElementById('cycleTimeDisplay');
-        const cycleSelect = document.getElementById('cycleSelect'); 
+        const cycleInput = document.getElementById('cycleInput'); // Changed from Select to Input
         const logStatusEl = document.getElementById('logStatus');
         const zoneStatusEl = document.getElementById('zoneStatus');
         const learningStatusEl = document.getElementById('learningStatus');
@@ -324,8 +323,13 @@
         // --- CORE FUNCTIONS ---
 
         function updateCycleTime() {
-            CYCLE_SECONDS = parseInt(cycleSelect.value);
-            // Kufanya soft reset ya assessment ili kuweka upya muda wa mzunguko
+            const minutes = parseInt(cycleInput.value);
+            if (isNaN(minutes) || minutes < 1) {
+                cycleInput.value = 12; // Default
+                CYCLE_SECONDS = 720; 
+            } else {
+                CYCLE_SECONDS = minutes * 60;
+            }
             assessRiskByTime(getCurrentCycleSeconds()); 
             logStatusEl.textContent = `Cycle Time Sasa: ${CYCLE_SECONDS / 60} Dakika.`;
         }
@@ -385,14 +389,19 @@
 
         function getCurrentCycleSeconds() {
             const now = new Date();
+            // Total seconds from midnight
             const totalSecondsOfDay = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+            // Current position within the custom cycle (0 to CYCLE_SECONDS - 1)
             return totalSecondsOfDay % CYCLE_SECONDS; 
         }
 
         function getCycleTimeDisplay(cycleSeconds) {
             const minutes = Math.floor(cycleSeconds / 60);
             const seconds = cycleSeconds % 60;
-            return `⏳ Cycle: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const totalCycleMinutes = Math.floor(CYCLE_SECONDS / 60);
+
+            // Display: 08:30 / 12:00
+            return `⏳ ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} / ${totalCycleMinutes.toString().padStart(2, '0')}:00`;
         }
         
         function updateClock() {
@@ -416,14 +425,65 @@
             historyListEl.innerHTML = history.map(item => {
                 const zoneClass = getZoneClass(parseFloat(item.actual));
                 return `<div class="history-item">
-                    [${item.time} / ${item.cycleTime.replace('⏳ Cycle: ', '')}] A: <span class="${zoneClass}">${item.actual}x (${item.zone})</span>
+                    [${item.time} / ${item.cycleTime.replace('⏳ Cycle: ', '').split('/')[0].trim()}] A: <span class="${zoneClass}">${item.actual}x (${item.zone})</span>
                 </div>`;
             }).join('');
         }
         
-        // --- RISK ASSESSMENT (BACK TO SIMPLER, PERCENTAGE-BASED LOGIC) ---
+        // --- NEW: OPTIMAL CYCLE TIME CALCULATION ---
+        function calculateOptimalCycleTime() {
+            // 1. Filter and get all Jackpot times in seconds from midnight
+            const jackpotTimes = history
+                .filter(item => parseFloat(item.actual) >= 10.00)
+                .map(item => {
+                    // Reconstruct time in total seconds since midnight (using item.time "HH:MM:SS")
+                    const parts = item.time.split(':');
+                    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+                })
+                .sort((a, b) => a - b); // Sort chronologically
+
+            if (jackpotTimes.length < 2) {
+                logStatusEl.textContent = `⚠️ Unahitaji angalau Jackpots 2 (10.00x+) kwenye historia yako kufanya uchambuzi.`;
+                return;
+            }
+            
+            // 2. Calculate intervals between consecutive Jackpots
+            let intervals = [];
+            for (let i = 1; i < jackpotTimes.length; i++) {
+                let interval = jackpotTimes[i] - jackpotTimes[i - 1];
+                // Check for wrap-around midnight (though less common, good practice)
+                if (interval < 0) {
+                     interval += 86400; // Add 24 hours in seconds
+                }
+                // We ignore intervals too small (e.g., less than 5 minutes) as they might be an anomaly
+                if (interval >= 300) { 
+                    intervals.push(interval);
+                }
+            }
+
+            if (intervals.length === 0) {
+                 logStatusEl.textContent = `⚠️ Hakuna muda wa kurudia (Intervals) wenye maana uliopatikana. Jaribu kuingiza data zaidi.`;
+                 return;
+            }
+
+            // 3. Calculate the average interval
+            const sumIntervals = intervals.reduce((sum, interval) => sum + interval, 0);
+            const averageIntervalSeconds = sumIntervals / intervals.length;
+            
+            // 4. Convert to minutes and set the new cycle time
+            const recommendedMinutes = Math.round(averageIntervalSeconds / 60);
+
+            // Update UI and System
+            cycleInput.value = recommendedMinutes;
+            updateCycleTime(); // This automatically updates the system's CYCLE_SECONDS
+            
+            logStatusEl.textContent = `✅ Muda wa Mzunguko Umependekezwa: ${recommendedMinutes} Dakika. (Wastani wa marudio: ${averageIntervalSeconds.toFixed(0)}s)`;
+        }
+
+
+        // --- RISK ASSESSMENT (NEUTRALIZED LOGIC) ---
         function assessRiskByTime(currentCycleSecond) {
-            const windowSize = 90; // 90 seconds window
+            const windowSize = 90; 
             let redCount = 0;
             let orangeCount = 0;
             let totalCount = 0;
@@ -443,55 +503,27 @@
                 }
             }
             
-            // 1. General Risk Alert (Red Zone)
-            let generalMessage = `Hali ya Sasa: Inachambua hatari...`;
+            // 1. General Risk Alert (Neutral)
+            let generalMessage;
             generalRiskAlertEl.className = 'risk-alert';
             
             if (totalCount < 5) { 
-                generalMessage = `⚠️ Historia Haikutoshi katika muda huu. (Sampuli: ${totalCount})`;
-                generalRiskAlertEl.style.color = '#FFC107';
-                generalRiskAlertEl.style.borderColor = '#FFC107';
+                generalMessage = `🚨 GENERAL RISK: Sampuli chache sana kwenye dirisha la ${windowSize}s (${totalCount}).`;
             } else {
                 const redPercent = (redCount / totalCount) * 100;
-
-                if (redPercent > 65) {
-                    generalMessage = `🚨 HATARI KUBWA! ${redPercent.toFixed(0)}% ya raundi zote zimefungwa chini ya ${ERROR_THRESHOLD}x.`;
-                    generalRiskAlertEl.classList.add('high-risk');
-                } else if (redPercent > 40) {
-                    generalMessage = `🟠 HATARI YA KAWAIDA. ${redPercent.toFixed(0)}% raundi zimekuwa Red Zone.`;
-                    generalRiskAlertEl.style.color = '#FF9800';
-                    generalRiskAlertEl.style.borderColor = '#FF9800';
-                } else {
-                    generalMessage = `🟢 HATARI NI NDOGO. Soko linaonekana zuri.`;
-                    generalRiskAlertEl.style.color = '#8BC34A';
-                    generalRiskAlertEl.style.borderColor = '#8BC34A';
-                }
+                generalMessage = `🚨 GENERAL RISK: ${redCount} raundi (${redPercent.toFixed(0)}%) ni chini ya ${ERROR_THRESHOLD}x katika ${totalCount} raundi zilizopita.`;
             }
             generalRiskAlertEl.textContent = generalMessage;
 
-            // 2. Jackpot Alert (Orange Zone) - Simplified Logic
-            let jackpotMessage = `💰 Jackpot Alert: Inachambua Jackpot (10.00x+)...`;
+            // 2. Jackpot Alert (Neutral)
+            let jackpotMessage;
             jackpotAlertEl.className = 'risk-alert';
-            jackpotAlertEl.style.backgroundColor = '#333';
-            jackpotAlertEl.style.color = '#4CAF50';
-            jackpotAlertEl.style.borderColor = '#4CAF50';
             
             if (totalCount >= 5) {
                 const orangePercent = (orangeCount / totalCount) * 100;
-
-                if (orangePercent > 10) {
-                    jackpotMessage = `🔥 JACKPOT INAKUJA! ${orangePercent.toFixed(0)}% ya raundi ZIMEFIKA 10.00x+ katika muda huu.`;
-                    jackpotAlertEl.classList.add('jackpot-coming');
-                } else if (orangeCount === 0 && totalCount > 15) {
-                    jackpotMessage = `🌟 KUENDELEA KWA JACKPOT! Hakuna 10.00x+ katika raundi ${totalCount} zilizopita kwenye muda huu.`;
-                    jackpotAlertEl.classList.add('jackpot-coming');
-                } else {
-                     jackpotMessage = `💰 Jackpot Alert: Jackpot imetokea karibuni au data haitoshi.`;
-                }
+                jackpotMessage = `💰 JACKPOT: ${orangeCount} raundi (${orangePercent.toFixed(0)}%) zimefika 10.00x+ katika ${totalCount} raundi zilizopita.`;
             } else {
-                 jackpotMessage = `💰 Jackpot Alert: Data ndogo, inahitaji raundi zaidi (${totalCount}).`;
-                 jackpotAlertEl.style.color = '#FFC107';
-                 jackpotAlertEl.style.borderColor = '#FFC107';
+                 jackpotMessage = `💰 JACKPOT: Data ndogo, inahitaji raundi zaidi (${totalCount}).`;
             }
             jackpotAlertEl.textContent = jackpotMessage;
         }
@@ -651,8 +683,9 @@
             logStatusEl.textContent = `Kosa la hivi karibuni (${deletedError.actual}x) limefutwa.`;
         });
 
-        // --- Cycle Select Listener (Unchanged) ---
-        cycleSelect.addEventListener('change', updateCycleTime);
+        // --- Event Listeners ---
+        cycleInput.addEventListener('change', updateCycleTime);
+        calculateOptimalBtn.addEventListener('click', calculateOptimalCycleTime); // NEW listener
 
 
         // Initialization
