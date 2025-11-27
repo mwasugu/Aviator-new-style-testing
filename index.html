@@ -163,17 +163,19 @@
             margin-top: 15px;
         }
         .risk-alert {
-            padding: 10px;
+            padding: 12px; /* Increased padding */
             border-radius: 8px;
             margin-bottom: 10px;
             font-weight: bold;
             text-align: center;
-            font-size: 16px;
+            font-size: 17px; /* Increased font size */
             border: 1px solid #333;
         }
         .risk-alert.safe { background-color: #4CAF50; color: white; border-color: #8BC34A; }
         .risk-alert.high-risk { background-color: #F44336; color: white; border-color: #E57373; }
-        .risk-alert.jackpot-pattern { background-color: #FF9800; color: #1a1a1a; border-color: #FFB74D; }
+        /* Jackpot Pre-Alert Color: Orange */
+        .risk-alert.jackpot-pattern { background-color: #FF9800; color: #1a1a1a; border-color: #FFB74D; } 
+        /* Main Jackpot Predict Color: Blue */
         .risk-alert.jackpot-predict { background-color: #2196F3; color: white; border-color: #64B5F6; }
         .risk-alert.low-data { background-color: #333; color: #bdbdbd; border-color: #555; }
 
@@ -214,7 +216,7 @@
     <div class="container">
         <h1>📊 Aviator Learning Log</h1>
         <p style="text-align: center; color: #FFC107; font-size: 14px;">
-            Mfumo Sasa Unatumia Muda wa Raundi (Crush Time + 6s) kwa uhakika.
+            Sasa ina Tahadhari ya Awali (30s kabla) na Kiwango cha Imani.
         </p>
 
         <label for="cycleInput">Seti ya Muda wa Mzunguko (Dakika):</label>
@@ -280,8 +282,9 @@
         const ROUNDS_PER_CYCLE = 60; 
         const RISK_WINDOW_SECONDS = 90; 
         const RISK_THRESHOLD_RED = 0.40; 
-        const MIN_JACKPOT_FOR_PREDICTION = 5; 
-        const JACKPOT_PREDICT_WINDOW = 40; 
+        const MIN_JACKPOTS_NEEDED = 5; // Jackpots zinazohitajika kuanza utabiri
+        const JACKPOT_PREDICT_WINDOW = 40; // Eneo kuu la Jackpot (20s +/- Wastani)
+        const PRE_ALERT_SECONDS = 30; // Tahadhari ya Awali (kabla ya kuanza kwa 40s window)
         const CRUSH_TIME_FACTOR = 1.05; 
         const PREPARATION_TIME_SECONDS = 6; 
 
@@ -407,7 +410,7 @@
             const ROUND_DURATION_APPROX = CYCLE_SECONDS / ROUNDS_PER_CYCLE;
             const currentRound = Math.floor(cycleSeconds / ROUND_DURATION_APPROX) + 1;
             
-            return `▶️ Round ${currentRound} of ${ROUNDS_PER_CYCLE} (${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} / ${totalCycleMinutes.toString().padStart(2, '0')}:00)`;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} (R:${currentRound} of ${ROUNDS_PER_CYCLE})`;
         }
         
         function updateClock() {
@@ -416,7 +419,7 @@
             
             // Cycle Position display (uses synthetic time)
             const currentCyclePosition = getCurrentCyclePosition();
-            cycleTimeDisplay.textContent = formatCycleTime(currentCyclePosition);
+            cycleTimeDisplay.textContent = `▶️ Cycle Position: ${formatCycleTime(currentCyclePosition)}`;
             
             // Risk assessment based on synthetic time
             assessRiskByTime(currentCyclePosition); 
@@ -435,11 +438,12 @@
             historyListEl.innerHTML = history.map(item => {
                 const zoneClass = getZoneClass(parseFloat(item.actual));
                 const cycleInfo = formatCycleTime(item.cyclePosition).match(/\((.*?)\)/)?.[1] || ''; 
-                const roundNum = formatCycleTime(item.cyclePosition).match(/Round (\d+)/)?.[1] || '';
+                const roundNum = cycleInfo.split(' of ')[0].replace('R:', '');
+                const cycleTime = formatCycleTime(item.cyclePosition).split('(')[0].trim();
                 const roundDuration = item.roundDurationSeconds.toFixed(1);
 
                 return `<div class="history-item">
-                    [${item.time} / R:${roundNum} | ${cycleInfo.split('/')[0].trim()} | T:${roundDuration}s] A: <span class="${zoneClass}">${item.actual}x (${item.zone})</span>
+                    [${item.time} | Time: ${cycleTime} | R: ${roundNum} | T:${roundDuration}s] A: <span class="${zoneClass}">${item.actual}x (${item.zone})</span>
                 </div>`;
             }).join('');
         }
@@ -493,7 +497,7 @@
         }
 
 
-        // --- RISK ASSESSMENT (Logic uses Synthetic Time and Full History Jackpot Check) ---
+        // --- RISK ASSESSMENT (UPDATED: Added Pre-Alert Logic) ---
         function assessRiskByTime(currentCyclePosition) {
             let redCount = 0;
             let orangeCount = 0;
@@ -503,7 +507,6 @@
             for (const item of history) {
                 
                 // Calculate time difference handling wrap-around
-                // Difference between current position and where the item landed
                 const timeDifference = (currentCyclePosition - item.cyclePosition + CYCLE_SECONDS) % CYCLE_SECONDS;
                 
                 // If the item is outside the RISK_WINDOW_SECONDS (90s), stop counting for General Risk
@@ -541,44 +544,72 @@
             let jackpotMessage;
             let jackpotClass = 'low-data';
 
-            if (allJackpots.length < MIN_JACKPOT_FOR_PREDICTION) {
+            if (allJackpots.length < MIN_JACKPOTS_NEEDED) {
                 // Not enough jackpots in total history
-                jackpotMessage = `💰 Jackpot Alert: Umeingiza ${allJackpots.length}/${MIN_JACKPOT_FOR_PREDICTION} za Jackpot. Ongeza data ili kujenga ruwaza.`;
+                jackpotMessage = `💰 Jackpot Alert: Umeingiza ${allJackpots.length}/${MIN_JACKPOTS_NEEDED} za Jackpot. Ongeza data ili kujenga ruwaza.`;
             } else {
                 // Step B: We have enough jackpots. Calculate the prediction.
-                // We take the top 5 most recent Jackpots from the full history
+                
+                // Tunatumia Jackpots 5 za mwisho kwa utabiri
                 const recentJackpotPositions = allJackpots
-                    .slice(0, MIN_JACKPOT_FOR_PREDICTION)
+                    .slice(0, MIN_JACKPOTS_NEEDED)
                     .map(item => item.cyclePosition);
 
-                // Find the average cycle position
+                // Pata wastani wa Cycle Position
                 const averageJackpotPosition = recentJackpotPositions.reduce((a, b) => a + b) / recentJackpotPositions.length;
                 
-                // Prediction window
-                const predictionZoneStart = (averageJackpotPosition - JACKPOT_PREDICT_WINDOW + CYCLE_SECONDS) % CYCLE_SECONDS;
-                const predictionZoneEnd = (averageJackpotPosition + JACKPOT_PREDICT_WINDOW + CYCLE_SECONDS) % CYCLE_SECONDS;
+                // --- 1. Define Prediction Zones ---
+                // Prediction Zone (40s total = +/- 20s kutoka wastani)
+                const PREDICT_HALF_WINDOW = JACKPOT_PREDICT_WINDOW / 2;
+                const predictionZoneStart = (averageJackpotPosition - PREDICT_HALF_WINDOW + CYCLE_SECONDS) % CYCLE_SECONDS;
+                const predictionZoneEnd = (averageJackpotPosition + PREDICT_HALF_WINDOW + CYCLE_SECONDS) % CYCLE_SECONDS;
 
-                let isPredicting = false;
+                // --- 2. Define Pre-Alert Zone (30s kabla ya kuanza kwa Prediction Zone) ---
+                const preAlertStartRaw = predictionZoneStart - PRE_ALERT_SECONDS;
+                const preAlertStart = (preAlertStartRaw + CYCLE_SECONDS) % CYCLE_SECONDS;
+                const preAlertEnd = predictionZoneStart; 
                 
-                // Check if current position is within the predicted zone
+                let isPreAlerting = false;
+                let isPredicting = false;
+
+                // Check for Pre-Alert Zone
+                if (preAlertStart <= preAlertEnd) {
+                    if (currentCyclePosition >= preAlertStart && currentCyclePosition < preAlertEnd) isPreAlerting = true;
+                } else { 
+                    if (currentCyclePosition >= preAlertStart || currentCyclePosition < preAlertEnd) isPreAlerting = true;
+                }
+
+                // Check for Main Prediction Zone
                 if (predictionZoneStart <= predictionZoneEnd) {
                     if (currentCyclePosition >= predictionZoneStart && currentCyclePosition <= predictionZoneEnd) isPredicting = true;
-                } else { 
+                } else {
                     if (currentCyclePosition >= predictionZoneStart || currentCyclePosition <= predictionZoneEnd) isPredicting = true;
                 }
 
-                if (isPredicting) {
-                    // Calculate closest time to the average prediction spot
-                    const diff1 = Math.abs(currentCyclePosition - averageJackpotPosition);
-                    const diff2 = CYCLE_SECONDS - diff1;
-                    const timeToAverage = Math.min(diff1, diff2);
+                // --- 3. Determine Message and Confidence Score ---
+                // Simple Confidence: Idadi ya Jackpots zilizotumika kwa utabiri
+                const confidencePercentage = (MIN_JACKPOTS_NEEDED / allJackpots.length * 100); 
+                
+                // Calculate time to average for main alert
+                const diff1 = Math.abs(currentCyclePosition - averageJackpotPosition);
+                const diff2 = CYCLE_SECONDS - diff1;
+                const timeToAverage = Math.min(diff1, diff2);
 
-                    jackpotMessage = `⚡ JACKPOT ALERT: Ndani ya 40s! Ruwaza ya Jackpot inakaribia (${timeToAverage.toFixed(0)}s).`;
+
+                if (isPredicting) {
+                    // Main Alert (Blue)
+                    jackpotMessage = `⚡ JACKPOT ALERT: NDANI YA RUWAZA! Ukaribu: ${timeToAverage.toFixed(0)}s. Imani: ${confidencePercentage.toFixed(0)}%.`;
                     jackpotClass = 'jackpot-predict';
+                } else if (isPreAlerting) {
+                    // New Pre-Alert (Orange)
+                    jackpotMessage = `🔔 TAHADHARI: Ruwaza inakaribia! Bado ${PRE_ALERT_SECONDS}s kuanza. Imani: ${confidencePercentage.toFixed(0)}%.`;
+                    jackpotClass = 'jackpot-pattern'; 
                 } else if (orangeCount > 0) {
+                    // Existing logic for when a Jackpot just occurred
                     jackpotMessage = `💰 Jackpot Alert: Jackpot imetokea sasa hivi! (${orangeCount} katika 90s).`;
                     jackpotClass = 'jackpot-pattern';
                 } else {
+                    // Far away (Green)
                     jackpotMessage = `💰 Jackpot Alert: Iko mbali. Subiri ruwaza ijayo.`;
                     jackpotClass = 'safe';
                 }
@@ -670,6 +701,14 @@
             updateHistory(historyEntry);
             updateLearningStatus();
             roundInput.value = '';
+            
+            // Logic: Explicitly show Cycle Position if it was a Jackpot
+            if (historyEntry.zone.includes('Orange')) {
+                logStatusEl.textContent = `🚨 JACKPOT ($${historyEntry.actual}x)!! Imerekodiwa kwenye Cycle Position: ${formatCycleTime(cyclePosition)}`;
+            } else {
+                logStatusEl.textContent = `✅ Matokeo ${actual.toFixed(2)}x yamerekodiwa saa ${historyEntry.time}.`;
+            }
+            
             updateClock();
         });
 
