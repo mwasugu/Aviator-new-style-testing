@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aviator Learning Log (Fixed Jackpot Detection)</title>
+    <title>Aviator Learning Log (Final Logic: Crush Time & Full History Jackpot)</title>
     <style>
         /* CSS YA UREMBO */
         body {
@@ -214,7 +214,7 @@
     <div class="container">
         <h1>📊 Aviator Learning Log</h1>
         <p style="text-align: center; color: #FFC107; font-size: 14px;">
-            Mfumo Sasa Unasoma Jackpot 5 kutoka Historia Yote.
+            Mfumo Sasa Unatumia Muda wa Raundi (Crush Time + 6s) kwa uhakika.
         </p>
 
         <label for="cycleInput">Seti ya Muda wa Mzunguko (Dakika):</label>
@@ -273,7 +273,7 @@
 
     <script>
         // --- GLOBAL VARIABLES ---
-        let CYCLE_SECONDS = 720; 
+        let CYCLE_SECONDS = 720; // Default 12 minutes
         const ERROR_THRESHOLD = 1.30; 
         const MIN_ATTEMPTS_FOR_RESET = 30; 
         const MISTAKE_PERCENTAGE_RESET = 0.35; 
@@ -329,6 +329,7 @@
          */
         function getCurrentCyclePosition() {
             let totalSyntheticSeconds = 0;
+            // Loop from oldest to newest to calculate total elapsed time
             for (let i = history.length - 1; i >= 0; i--) {
                 totalSyntheticSeconds += history[i].roundDurationSeconds;
             }
@@ -378,4 +379,337 @@
                 `Raundi: ${attempts} | Makosa (< ${ERROR_THRESHOLD}x): ${mistakes} (${errorPercent}%)`;
             
             localStorage.setItem('aviator_attempts', attempts);
-            localStorage.setItem('aviator
+            localStorage.setItem('aviator_mistakes', mistakes);
+
+            checkForAutoReset(); 
+        }
+
+        function getZone(multiplier) {
+            if (multiplier >= 10.00) return 'Orange Zone (Jackpot)';
+            if (multiplier >= ERROR_THRESHOLD) return 'Green Zone'; 
+            return 'Red Zone';
+        }
+
+        function getZoneClass(multiplier) {
+            if (multiplier >= 10.00) return 'orange';
+            if (multiplier >= ERROR_THRESHOLD) return 'green';
+            return 'red';
+        }
+        
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { hour12: false });
+        }
+        
+        function formatCycleTime(cycleSeconds) {
+            const minutes = Math.floor(cycleSeconds / 60);
+            const seconds = Math.floor(cycleSeconds % 60);
+            const totalCycleMinutes = Math.floor(CYCLE_SECONDS / 60);
+            const ROUND_DURATION_APPROX = CYCLE_SECONDS / ROUNDS_PER_CYCLE;
+            const currentRound = Math.floor(cycleSeconds / ROUND_DURATION_APPROX) + 1;
+            
+            return `▶️ Round ${currentRound} of ${ROUNDS_PER_CYCLE} (${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} / ${totalCycleMinutes.toString().padStart(2, '0')}:00)`;
+        }
+        
+        function updateClock() {
+            // Clock display for context (still uses real time)
+            clockDisplay.textContent = formatTime(new Date()); 
+            
+            // Cycle Position display (uses synthetic time)
+            const currentCyclePosition = getCurrentCyclePosition();
+            cycleTimeDisplay.textContent = formatCycleTime(currentCyclePosition);
+            
+            // Risk assessment based on synthetic time
+            assessRiskByTime(currentCyclePosition); 
+        }
+
+        function updateHistory(newRound) {
+            history.unshift(newRound); // Add to the beginning (most recent)
+            if (history.length > 50) { 
+                history.pop(); // Keep only the last 50 entries
+            }
+            localStorage.setItem('aviator_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyListEl.innerHTML = history.map(item => {
+                const zoneClass = getZoneClass(parseFloat(item.actual));
+                const cycleInfo = formatCycleTime(item.cyclePosition).match(/\((.*?)\)/)?.[1] || ''; 
+                const roundNum = formatCycleTime(item.cyclePosition).match(/Round (\d+)/)?.[1] || '';
+                const roundDuration = item.roundDurationSeconds.toFixed(1);
+
+                return `<div class="history-item">
+                    [${item.time} / R:${roundNum} | ${cycleInfo.split('/')[0].trim()} | T:${roundDuration}s] A: <span class="${zoneClass}">${item.actual}x (${item.zone})</span>
+                </div>`;
+            }).join('');
+        }
+        
+        function calculateOptimalCycleTime() {
+            const jackpotDurations = history
+                .filter(item => parseFloat(item.actual) >= 10.00)
+                .map(item => item.roundDurationSeconds);
+                
+            if (jackpotDurations.length < 2) {
+                logStatusEl.textContent = `⚠️ Unahitaji angalau Jackpots 2 (10.00x+) kwenye historia yako kufanya uchambuzi.`;
+                return;
+            }
+            
+            let jackpotRoundIndices = history
+                .map((item, index) => ({ item, index }))
+                .filter(entry => parseFloat(entry.item.actual) >= 10.00)
+                .map(entry => entry.index)
+                .sort((a, b) => b - a); 
+
+            let intervalRounds = [];
+            for (let i = 1; i < jackpotRoundIndices.length; i++) {
+                intervalRounds.push(jackpotRoundIndices[i - 1] - jackpotRoundIndices[i]);
+            }
+            
+            if (intervalRounds.length === 0) {
+                 logStatusEl.textContent = `⚠️ Hakuna ruwaza ya Jackpot iliyopatikana. Ingiza data zaidi.`;
+                 return;
+            }
+
+            let estimatedTimeSum = 0;
+            
+            for (let i = 1; i < jackpotRoundIndices.length; i++) {
+                let startIndex = jackpotRoundIndices[i];
+                let endIndex = jackpotRoundIndices[i - 1];
+                let intervalTime = 0;
+                
+                for(let j = startIndex + 1; j <= endIndex; j++) {
+                    intervalTime += history[j].roundDurationSeconds;
+                }
+                estimatedTimeSum += intervalTime;
+            }
+            
+            const averageIntervalSeconds = estimatedTimeSum / intervalRounds.length;
+            const recommendedMinutes = Math.round(averageIntervalSeconds / 60);
+
+            cycleInput.value = recommendedMinutes;
+            updateCycleTime(); 
+            
+            logStatusEl.textContent = `✅ Muda wa Mzunguko Umependekezwa: ${recommendedMinutes} Dakika.`;
+        }
+
+
+        // --- RISK ASSESSMENT (Logic uses Synthetic Time and Full History Jackpot Check) ---
+        function assessRiskByTime(currentCyclePosition) {
+            let redCount = 0;
+            let orangeCount = 0;
+            let totalCount = 0;
+            
+            // 1. General Risk: Only look at immediate 90s window
+            for (const item of history) {
+                
+                // Calculate time difference handling wrap-around
+                // Difference between current position and where the item landed
+                const timeDifference = (currentCyclePosition - item.cyclePosition + CYCLE_SECONDS) % CYCLE_SECONDS;
+                
+                // If the item is outside the RISK_WINDOW_SECONDS (90s), stop counting for General Risk
+                if (timeDifference >= RISK_WINDOW_SECONDS) break;
+                
+                totalCount++;
+                if (item.zone.includes('Red')) redCount++;
+                if (item.zone.includes('Orange')) orangeCount++;
+            }
+            
+            let generalMessage;
+            let generalClass = 'low-data';
+
+            if (totalCount < 5) { 
+                generalMessage = `🚨 General Risk: Data ndogo, inahitaji raundi zaidi.`;
+            } else {
+                const redPercent = (redCount / totalCount);
+                if (redPercent >= RISK_THRESHOLD_RED) { 
+                    generalMessage = `🔴 HATARI KUBWA: ${redCount}/${totalCount} raundi ni chini ya ${ERROR_THRESHOLD}x.`;
+                    generalClass = 'high-risk';
+                } else {
+                    generalMessage = `🟢 Eneo Salama: Hatari ndogo (<${ERROR_THRESHOLD}x).`;
+                    generalClass = 'safe';
+                }
+            }
+            generalRiskAlertEl.textContent = generalMessage;
+            generalRiskAlertEl.className = `risk-alert ${generalClass}`;
+
+
+            // --- 2. Jackpot Alert (FIXED LOGIC: CHECK WHOLE HISTORY) ---
+            
+            // Step A: Find ALL Jackpots in history (from newest to oldest)
+            const allJackpots = history.filter(item => parseFloat(item.actual) >= 10.00);
+
+            let jackpotMessage;
+            let jackpotClass = 'low-data';
+
+            if (allJackpots.length < MIN_JACKPOT_FOR_PREDICTION) {
+                // Not enough jackpots in total history
+                jackpotMessage = `💰 Jackpot Alert: Umeingiza ${allJackpots.length}/${MIN_JACKPOT_FOR_PREDICTION} za Jackpot. Ongeza data ili kujenga ruwaza.`;
+            } else {
+                // Step B: We have enough jackpots. Calculate the prediction.
+                // We take the top 5 most recent Jackpots from the full history
+                const recentJackpotPositions = allJackpots
+                    .slice(0, MIN_JACKPOT_FOR_PREDICTION)
+                    .map(item => item.cyclePosition);
+
+                // Find the average cycle position
+                const averageJackpotPosition = recentJackpotPositions.reduce((a, b) => a + b) / recentJackpotPositions.length;
+                
+                // Prediction window
+                const predictionZoneStart = (averageJackpotPosition - JACKPOT_PREDICT_WINDOW + CYCLE_SECONDS) % CYCLE_SECONDS;
+                const predictionZoneEnd = (averageJackpotPosition + JACKPOT_PREDICT_WINDOW + CYCLE_SECONDS) % CYCLE_SECONDS;
+
+                let isPredicting = false;
+                
+                // Check if current position is within the predicted zone
+                if (predictionZoneStart <= predictionZoneEnd) {
+                    if (currentCyclePosition >= predictionZoneStart && currentCyclePosition <= predictionZoneEnd) isPredicting = true;
+                } else { 
+                    if (currentCyclePosition >= predictionZoneStart || currentCyclePosition <= predictionZoneEnd) isPredicting = true;
+                }
+
+                if (isPredicting) {
+                    // Calculate closest time to the average prediction spot
+                    const diff1 = Math.abs(currentCyclePosition - averageJackpotPosition);
+                    const diff2 = CYCLE_SECONDS - diff1;
+                    const timeToAverage = Math.min(diff1, diff2);
+
+                    jackpotMessage = `⚡ JACKPOT ALERT: Ndani ya 40s! Ruwaza ya Jackpot inakaribia (${timeToAverage.toFixed(0)}s).`;
+                    jackpotClass = 'jackpot-predict';
+                } else if (orangeCount > 0) {
+                    jackpotMessage = `💰 Jackpot Alert: Jackpot imetokea sasa hivi! (${orangeCount} katika 90s).`;
+                    jackpotClass = 'jackpot-pattern';
+                } else {
+                    jackpotMessage = `💰 Jackpot Alert: Iko mbali. Subiri ruwaza ijayo.`;
+                    jackpotClass = 'safe';
+                }
+            }
+            jackpotAlertEl.textContent = jackpotMessage;
+            jackpotAlertEl.className = `risk-alert ${jackpotClass}`;
+        }
+
+        // --- VOICE INPUT & TOGGLE (Unchanged) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US'; 
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            const MIC_BUTTON_DEFAULT_COLOR = '#2196F3'; 
+            const MIC_BUTTON_RECORDING_COLOR = '#FF0000'; 
+            
+            micBtn.style.backgroundColor = MIC_BUTTON_DEFAULT_COLOR;
+            micBtn.addEventListener('click', () => {
+                logStatusEl.textContent = "Sema namba...";
+                micBtn.style.backgroundColor = MIC_BUTTON_RECORDING_COLOR;
+                micBtn.textContent = '🔴';
+                try { recognition.start(); } catch (e) { console.error(e); }
+            });
+
+            recognition.onresult = (event) => {
+                const result = event.results[0][0].transcript;
+                const cleanedResult = result.toLowerCase().replace(/point|dot/g, '.');
+                const numberMatch = cleanedResult.match(/(\d+\.?\d*)/); 
+                
+                micBtn.style.backgroundColor = MIC_BUTTON_DEFAULT_COLOR;
+                micBtn.textContent = '🎤';
+
+                if (numberMatch) {
+                    const number = parseFloat(numberMatch[0]).toFixed(2);
+                    roundInput.value = number;
+                    if (isAutoSubmitEnabled) {
+                        logButton.click();
+                        logStatusEl.textContent = `Sauti (${number}x) Imepokelewa na Kuandikishwa.`;
+                    } else {
+                        logStatusEl.textContent = `Sauti (${number}x) Imepokelewa. Bonyeza kitufe kuingiza.`;
+                    }
+                } else {
+                     logStatusEl.textContent = "Sikuelewi. Jaribu tena.";
+                }
+            };
+            recognition.onspeechend = () => { micBtn.style.backgroundColor = MIC_BUTTON_DEFAULT_COLOR; micBtn.textContent = '🎤'; };
+            recognition.onerror = () => { micBtn.style.backgroundColor = MIC_BUTTON_DEFAULT_COLOR; micBtn.textContent = '🎤'; };
+        } else {
+            micBtn.style.display = 'none';
+            autoSubmitToggle.style.display = 'none';
+        }
+
+        autoSubmitToggle.addEventListener('click', () => {
+            isAutoSubmitEnabled = !isAutoSubmitEnabled;
+            if (isAutoSubmitEnabled) {
+                autoSubmitToggle.textContent = 'Automatic Voice Input: ON ✅';
+                autoSubmitToggle.classList.remove('off');
+                autoSubmitToggle.classList.add('on');
+            } else {
+                autoSubmitToggle.textContent = 'Automatic Voice Input: OFF ❌';
+                autoSubmitToggle.classList.remove('on');
+                autoSubmitToggle.classList.add('off');
+            }
+        });
+
+        // --- MAIN LOGGING & DELETE FUNCTIONS ---
+        logButton.addEventListener('click', () => {
+            const actual = parseFloat(roundInput.value);
+            if (isNaN(actual) || actual < 1.00) return;
+
+            attempts++;
+            const isMistake = (actual < ERROR_THRESHOLD);
+            if (isMistake) mistakes++;
+            
+            const roundDuration = calculateRoundDuration(actual);
+            const cyclePosition = getCurrentCyclePosition();
+
+            const historyEntry = {
+                time: formatTime(new Date()), 
+                roundDurationSeconds: roundDuration,
+                cyclePosition: cyclePosition,
+                actual: actual.toFixed(2),
+                zone: getZone(actual),
+                isMistake: isMistake,
+            };
+            updateHistory(historyEntry);
+            updateLearningStatus();
+            roundInput.value = '';
+            updateClock();
+        });
+
+        deleteLastBtn.addEventListener('click', () => {
+            if (history.length === 0) return;
+            const deletedRound = history.shift();
+            attempts = Math.max(0, attempts - 1);
+            if (deletedRound.isMistake) mistakes = Math.max(0, mistakes - 1);
+            localStorage.setItem('aviator_history', JSON.stringify(history));
+            updateLearningStatus();
+            renderHistory();
+            updateClock();
+        });
+
+        deleteLastErrorBtn.addEventListener('click', () => {
+            const errorIndex = history.findIndex(item => item.isMistake);
+            if (errorIndex === -1) return;
+            history.splice(errorIndex, 1); 
+            attempts = Math.max(0, attempts - 1);
+            mistakes = Math.max(0, mistakes - 1);
+            localStorage.setItem('aviator_history', JSON.stringify(history));
+            updateLearningStatus();
+            renderHistory();
+            updateClock();
+        });
+        
+        deleteAllBtn.addEventListener('click', () => {
+            if (confirm("Futa historia yote?")) {
+                resetSystem(true);
+            }
+        });
+
+        cycleInput.addEventListener('change', updateCycleTime);
+        calculateOptimalBtn.addEventListener('click', calculateOptimalCycleTime); 
+
+        // Initialization
+        updateCycleTime(); 
+        setInterval(updateClock, 1000); 
+        updateLearningStatus();
+        renderHistory();
+    </script>
+</body>
+</html>
