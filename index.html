@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aviator Learning Log (Auto-Optimal Cycle & Neutral Alerts)</title>
+    <title>Aviator Learning Log (Active Risk & Rounds)</title>
     <style>
         /* CSS YA UREMBO */
         body {
@@ -70,39 +70,43 @@
         }
         #logButton:hover { background-color: #4dd0e1; }
         
-        #calculateOptimalBtn { /* NEW BUTTON STYLE */
-            background-color: #8BC34A; /* Green for calculation */
+        #calculateOptimalBtn { 
+            background-color: #8BC34A; 
             color: #1a1a1a;
             padding: 10px;
             font-size: 16px;
+            margin-bottom: 15px;
         }
         #calculateOptimalBtn:hover { background-color: #A5D6A7; }
-
 
         /* ACTION BUTTONS IN HISTORY LOG */
         .history-actions {
             display: flex;
             gap: 10px;
             margin-bottom: 10px;
+            flex-wrap: wrap; /* Allow wrap for smaller screens */
         }
         .history-actions button {
-            width: 50%;
+            width: 48%; /* Adjust for 4 buttons */
             padding: 8px;
             font-size: 14px;
-            margin: 0;
+            margin: 2px 0; /* Minimal margin */
         }
 
         #deleteLastBtn {
             background-color: #FF9800;
             color: #1a1a1a;
         }
-        #deleteLastBtn:hover { background-color: #FFB74D; }
-
         #deleteLastErrorBtn {
             background-color: #F44336;
             color: white;
         }
-        #deleteLastErrorBtn:hover { background-color: #E57373; }
+        #deleteAllBtn { /* NEW DELETE ALL BUTTON */
+            width: 100% !important;
+            background-color: #9C27B0;
+            color: white;
+            font-size: 16px;
+        }
         
         /* VOICE INPUT & CLOCK STYLES */
         .input-controls {
@@ -120,22 +124,6 @@
             border-radius: 8px;
             font-size: 20px;
             line-height: 44px;
-        }
-
-        #autoSubmitToggle {
-            width: 100%;
-            padding: 5px;
-            font-size: 12px;
-            background-color: #333;
-            color: white;
-            margin-bottom: 10px;
-            border-radius: 8px;
-        }
-        #autoSubmitToggle.on {
-            background-color: #4CAF50;
-        }
-        #autoSubmitToggle.off {
-            background-color: #9E9E9E;
         }
 
         #timeContainer {
@@ -169,17 +157,8 @@
             margin: 10px 0;
             text-align: center;
         }
-        .zone-status {
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            padding: 5px 0;
-        }
-        .zone-status.red { color: #E57373; }
-        .zone-status.green { color: #8BC34A; }
-        .zone-status.orange { color: #FF9800; }
 
-        /* RISK ASSESSMENT ALERTS (Neutralized) */
+        /* RISK ASSESSMENT ALERTS (ACTIVE) */
         #riskAssessmentContainer {
             margin-top: 15px;
         }
@@ -191,10 +170,12 @@
             text-align: center;
             font-size: 16px;
             border: 1px solid #333;
-            background-color: #333;
-            color: #FFC107; /* Default Neutral Color */
-            border-color: #555;
         }
+        .risk-alert.safe { background-color: #4CAF50; color: white; border-color: #8BC34A; }
+        .risk-alert.high-risk { background-color: #F44336; color: white; border-color: #E57373; }
+        .risk-alert.jackpot-pattern { background-color: #FF9800; color: #1a1a1a; border-color: #FFB74D; }
+        .risk-alert.low-data { background-color: #333; color: #bdbdbd; border-color: #555; }
+
 
         #resetWarning {
             background-color: #FF0000;
@@ -259,8 +240,8 @@
 
         <div id="results" class="result-box">
             <div id="riskAssessmentContainer">
-                <div class="risk-alert" id="jackpotAlert">💰 Jackpot Alert: Inajumlisha tu (Neutral)</div>
-                <div class="risk-alert" id="generalRiskAlert">🚨 General Risk: Inajumlisha tu (Neutral)</div>
+                <div class="risk-alert low-data" id="jackpotAlert">💰 Jackpot Alert: Data ndogo, tafuta ruwaza!</div>
+                <div class="risk-alert low-data" id="generalRiskAlert">🚨 General Risk: Data ndogo, inahitaji raundi zaidi.</div>
             </div>
             
             <div class="zone-status" id="zoneStatus">Tayari Kuandikisha Matokeo. Kosa: <span style="color: #FFC107;">&lt; 1.30x</span></div>
@@ -274,6 +255,7 @@
             <div class="history-actions">
                 <button id="deleteLastBtn">Futa Raundi ya Mwisho</button>
                 <button id="deleteLastErrorBtn">Futa Kosa Moja (Red Zone)</button>
+                <button id="deleteAllBtn">FUTA HISTORIA YOTE</button> 
             </div>
 
             <div id="historyList"></div>
@@ -292,6 +274,12 @@
         const MIN_ATTEMPTS_FOR_RESET = 30; 
         const MISTAKE_PERCENTAGE_RESET = 0.35; 
         
+        // New Risk Assessment Constants
+        const ROUNDS_PER_CYCLE = 60; // 60 rounds in a cycle (e.g., 12 seconds per round in a 12-minute cycle)
+        const RISK_WINDOW_SECONDS = 90; // 90 seconds history check window
+        const RISK_THRESHOLD_RED = 0.40; // High Risk if > 40% of rounds in window were Red (<1.30x)
+        const RISK_THRESHOLD_JACKPOT = 0.10; // Jackpot Pattern if > 10% of rounds in window were Jackpot (10.00x+)
+
         let attempts = parseInt(localStorage.getItem('aviator_attempts') || 0);
         let mistakes = parseInt(localStorage.getItem('aviator_mistakes') || 0);
         let history = JSON.parse(localStorage.getItem('aviator_history') || '[]');
@@ -305,12 +293,13 @@
         const logButton = document.getElementById('logButton'); 
         const deleteLastBtn = document.getElementById('deleteLastBtn');
         const deleteLastErrorBtn = document.getElementById('deleteLastErrorBtn'); 
-        const calculateOptimalBtn = document.getElementById('calculateOptimalBtn'); // NEW
+        const deleteAllBtn = document.getElementById('deleteAllBtn'); // NEW
+        const calculateOptimalBtn = document.getElementById('calculateOptimalBtn'); 
         const micBtn = document.getElementById('micBtn');
         const autoSubmitToggle = document.getElementById('autoSubmitToggle'); 
         const clockDisplay = document.getElementById('clockDisplay');
         const cycleTimeDisplay = document.getElementById('cycleTimeDisplay');
-        const cycleInput = document.getElementById('cycleInput'); // Changed from Select to Input
+        const cycleInput = document.getElementById('cycleInput'); 
         const logStatusEl = document.getElementById('logStatus');
         const zoneStatusEl = document.getElementById('zoneStatus');
         const learningStatusEl = document.getElementById('learningStatus');
@@ -384,7 +373,10 @@
         }
         
         function formatTime(date) {
-            return date.toTimeString().split(' ')[0];
+            // Use 24-hour format: HH:MM:SS
+            const timeString = date.toLocaleTimeString('en-US', { hour12: false });
+            // Ensure no timezone text is included
+            return timeString.split(' ')[0];
         }
 
         function getCurrentCycleSeconds() {
@@ -399,9 +391,13 @@
             const minutes = Math.floor(cycleSeconds / 60);
             const seconds = cycleSeconds % 60;
             const totalCycleMinutes = Math.floor(CYCLE_SECONDS / 60);
-
-            // Display: 08:30 / 12:00
-            return `⏳ ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} / ${totalCycleMinutes.toString().padStart(2, '0')}:00`;
+            
+            // Calculation for Round Number
+            const ROUND_DURATION = CYCLE_SECONDS / ROUNDS_PER_CYCLE;
+            const currentRound = Math.floor(cycleSeconds / ROUND_DURATION) + 1;
+            
+            // Display: Round X (MM:SS / MM:00)
+            return `▶️ Round ${currentRound} of ${ROUNDS_PER_CYCLE} (${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} / ${totalCycleMinutes.toString().padStart(2, '0')}:00)`;
         }
         
         function updateClock() {
@@ -424,38 +420,37 @@
         function renderHistory() {
             historyListEl.innerHTML = history.map(item => {
                 const zoneClass = getZoneClass(parseFloat(item.actual));
+                // Extract time and round info for simpler display
+                const cycleInfo = item.cycleTime.match(/\((.*?)\)/)?.[1] || ''; 
+                const roundNum = item.cycleTime.match(/Round (\d+)/)?.[1] || '';
+
                 return `<div class="history-item">
-                    [${item.time} / ${item.cycleTime.replace('⏳ Cycle: ', '').split('/')[0].trim()}] A: <span class="${zoneClass}">${item.actual}x (${item.zone})</span>
+                    [${item.time} / R:${roundNum} ${cycleInfo.split('/')[0].trim()}] A: <span class="${zoneClass}">${item.actual}x (${item.zone})</span>
                 </div>`;
             }).join('');
         }
         
-        // --- NEW: OPTIMAL CYCLE TIME CALCULATION ---
+        // --- OPTIMAL CYCLE TIME CALCULATION (Unchanged) ---
         function calculateOptimalCycleTime() {
-            // 1. Filter and get all Jackpot times in seconds from midnight
             const jackpotTimes = history
                 .filter(item => parseFloat(item.actual) >= 10.00)
                 .map(item => {
-                    // Reconstruct time in total seconds since midnight (using item.time "HH:MM:SS")
                     const parts = item.time.split(':');
                     return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
                 })
-                .sort((a, b) => a - b); // Sort chronologically
+                .sort((a, b) => a - b); 
 
             if (jackpotTimes.length < 2) {
                 logStatusEl.textContent = `⚠️ Unahitaji angalau Jackpots 2 (10.00x+) kwenye historia yako kufanya uchambuzi.`;
                 return;
             }
             
-            // 2. Calculate intervals between consecutive Jackpots
             let intervals = [];
             for (let i = 1; i < jackpotTimes.length; i++) {
                 let interval = jackpotTimes[i] - jackpotTimes[i - 1];
-                // Check for wrap-around midnight (though less common, good practice)
                 if (interval < 0) {
-                     interval += 86400; // Add 24 hours in seconds
+                     interval += 86400; 
                 }
-                // We ignore intervals too small (e.g., less than 5 minutes) as they might be an anomaly
                 if (interval >= 300) { 
                     intervals.push(interval);
                 }
@@ -466,24 +461,20 @@
                  return;
             }
 
-            // 3. Calculate the average interval
             const sumIntervals = intervals.reduce((sum, interval) => sum + interval, 0);
             const averageIntervalSeconds = sumIntervals / intervals.length;
             
-            // 4. Convert to minutes and set the new cycle time
             const recommendedMinutes = Math.round(averageIntervalSeconds / 60);
 
-            // Update UI and System
             cycleInput.value = recommendedMinutes;
-            updateCycleTime(); // This automatically updates the system's CYCLE_SECONDS
+            updateCycleTime(); 
             
             logStatusEl.textContent = `✅ Muda wa Mzunguko Umependekezwa: ${recommendedMinutes} Dakika. (Wastani wa marudio: ${averageIntervalSeconds.toFixed(0)}s)`;
         }
 
 
-        // --- RISK ASSESSMENT (NEUTRALIZED LOGIC) ---
+        // --- RISK ASSESSMENT (REVERTED TO ACTIVE LOGIC) ---
         function assessRiskByTime(currentCycleSecond) {
-            const windowSize = 90; 
             let redCount = 0;
             let orangeCount = 0;
             let totalCount = 0;
@@ -492,40 +483,58 @@
                 const itemCycleSecond = parseInt(item.cycleSecond);
                 let diff = Math.abs(currentCycleSecond - itemCycleSecond);
                 
+                // Calculate difference considering cycle wrap-around
                 if (diff > CYCLE_SECONDS / 2) {
                     diff = CYCLE_SECONDS - diff;
                 }
 
-                if (diff <= windowSize) {
+                if (diff <= RISK_WINDOW_SECONDS) {
                     totalCount++;
                     if (item.zone.includes('Red')) redCount++;
                     if (item.zone.includes('Orange')) orangeCount++;
                 }
             }
             
-            // 1. General Risk Alert (Neutral)
+            // --- 1. General Risk Alert ---
             let generalMessage;
-            generalRiskAlertEl.className = 'risk-alert';
-            
+            let generalClass = 'low-data';
+
             if (totalCount < 5) { 
-                generalMessage = `🚨 GENERAL RISK: Sampuli chache sana kwenye dirisha la ${windowSize}s (${totalCount}).`;
+                generalMessage = `🚨 General Risk: Data ndogo, inahitaji raundi zaidi.`;
             } else {
-                const redPercent = (redCount / totalCount) * 100;
-                generalMessage = `🚨 GENERAL RISK: ${redCount} raundi (${redPercent.toFixed(0)}%) ni chini ya ${ERROR_THRESHOLD}x katika ${totalCount} raundi zilizopita.`;
+                const redPercent = (redCount / totalCount);
+
+                if (redPercent >= RISK_THRESHOLD_RED) { // >40% Red in 90s window
+                    generalMessage = `🔴 HATARI KUBWA: ${redCount}/${totalCount} raundi ni chini ya ${ERROR_THRESHOLD}x.`;
+                    generalClass = 'high-risk';
+                } else {
+                    generalMessage = `🟢 Eneo Salama: Hatari ndogo ya <${ERROR_THRESHOLD}x katika dirisha hili.`;
+                    generalClass = 'safe';
+                }
             }
             generalRiskAlertEl.textContent = generalMessage;
+            generalRiskAlertEl.className = `risk-alert ${generalClass}`;
 
-            // 2. Jackpot Alert (Neutral)
+
+            // --- 2. Jackpot Alert ---
             let jackpotMessage;
-            jackpotAlertEl.className = 'risk-alert';
+            let jackpotClass = 'low-data';
             
-            if (totalCount >= 5) {
-                const orangePercent = (orangeCount / totalCount) * 100;
-                jackpotMessage = `💰 JACKPOT: ${orangeCount} raundi (${orangePercent.toFixed(0)}%) zimefika 10.00x+ katika ${totalCount} raundi zilizopita.`;
+            if (totalCount < 5) {
+                jackpotMessage = `💰 Jackpot Alert: Data ndogo, tafuta ruwaza!`;
             } else {
-                 jackpotMessage = `💰 JACKPOT: Data ndogo, inahitaji raundi zaidi (${totalCount}).`;
+                const orangePercent = (orangeCount / totalCount);
+                
+                if (orangePercent >= RISK_THRESHOLD_JACKPOT) { // >10% Jackpot in 90s window
+                    jackpotMessage = `✨ JACKPOT PATTERN: ${orangeCount}/${totalCount} imepita 10.00x+.`;
+                    jackpotClass = 'jackpot-pattern';
+                } else {
+                    jackpotMessage = `💰 Jackpot Alert: ${orangeCount}/${totalCount} (10.00x+) katika 90s zilizopita.`;
+                    jackpotClass = 'safe';
+                }
             }
             jackpotAlertEl.textContent = jackpotMessage;
+            jackpotAlertEl.className = `risk-alert ${jackpotClass}`;
         }
 
         // --- VOICE INPUT LOGIC (Unchanged) ---
@@ -682,10 +691,19 @@
             renderHistory();
             logStatusEl.textContent = `Kosa la hivi karibuni (${deletedError.actual}x) limefutwa.`;
         });
+        
+        // --- DELETE ALL HISTORY BUTTON HANDLER (NEW) ---
+        deleteAllBtn.addEventListener('click', () => {
+            if (confirm("Una uhakika unataka kufuta historia yote (raundi na makosa) na kuweka upya mfumo?")) {
+                resetSystem(true);
+                logStatusEl.textContent = "✅ Historia Yote Imefutwa. Mfumo Umeanzia Upya.";
+            }
+        });
+
 
         // --- Event Listeners ---
         cycleInput.addEventListener('change', updateCycleTime);
-        calculateOptimalBtn.addEventListener('click', calculateOptimalCycleTime); // NEW listener
+        calculateOptimalBtn.addEventListener('click', calculateOptimalCycleTime); 
 
 
         // Initialization
