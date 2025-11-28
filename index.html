@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aviator Prediction Simulator (Live Time Learning)</title>
     <style>
-        /* CSS INAANZA HAPA - DESIGN BORA */
+        /* CSS YA UREMBO */
         body {
             font-family: 'Arial', sans-serif;
             background-color: #0d0d0d;
@@ -191,6 +191,7 @@
         let isPredictionMode = true; // State: true = Predict, false = Learn/Log
 
         const CYCLE_SECONDS = 720; // 12 minutes * 60 seconds
+        const ERROR_THRESHOLD = 5.0; // Kizingiti kipya cha kosa (error threshold)
         let history = JSON.parse(localStorage.getItem('aviator_history') || '[]');
         
         const MIC_BUTTON_DEFAULT_COLOR = '#2196F3'; 
@@ -211,7 +212,7 @@
         // --- UTILITY FUNCTIONS ---
         function updateLearningStatus() {
             learningStatusEl.textContent = 
-                `Majukumu ya Utabiri: ${attempts} | Makosa (Simulated): ${mistakes} | Makosa yanaathiri utabiri ujao.`;
+                `Forecast Tasks: ${attempts} | Errors (Simulated): ${mistakes} | Makosa yanaathiri utabiri ujao.`;
         }
 
         function getZone(multiplier) {
@@ -299,21 +300,22 @@
             
             let message = '';
             
-            if (totalCount === 0) {
+            if (totalCount < 5) { // Needs at least 5 data points to start assessing
                 message = `Chukua tahadhari: Historia bado haitoshi katika muda huu (${getCycleTimeDisplay(currentCycleSecond)}).`;
+                riskAssessmentEl.style.backgroundColor = '#555'; // Grey for neutral
             } else {
                 const redPercent = (redCount / totalCount) * 100;
                 const orangePercent = (orangeCount / totalCount) * 100;
 
                 if (redPercent > 60) {
                     message = `🚨 HATARI KUBWA! ${redPercent.toFixed(0)}% ya raundi zilizopita katika muda huu zimefungwa chini ya 2.00x.`;
-                    riskAssessmentEl.style.backgroundColor = '#E57373';
+                    riskAssessmentEl.style.backgroundColor = '#E57373'; // Red
                 } else if (orangePercent > 10) {
                     message = `💰 JACKPOT INAKUJA? ${orangePercent.toFixed(0)}% ya raundi zimefika 10.00x+ katika muda huu.`;
-                    riskAssessmentEl.style.backgroundColor = '#4CAF50';
+                    riskAssessmentEl.style.backgroundColor = '#4CAF50'; // Green
                 } else {
                     message = `🟢 HALI YA KAWAIDA. Hatari ni ndogo kwa sasa.`;
-                    riskAssessmentEl.style.backgroundColor = '#333';
+                    riskAssessmentEl.style.backgroundColor = '#333'; // Darker neutral
                 }
             }
             riskAssessmentEl.textContent = message;
@@ -420,7 +422,8 @@
 
                 // 1. Fanya Logic ya Kujifunza
                 attempts++;
-                if (Math.abs(predicted - actual) > 2.0) { 
+                // NIMEWEKA 5.0 HAPA KAMA ULIVYOMBI
+                if (Math.abs(predicted - actual) > ERROR_THRESHOLD) { 
                     mistakes++;
                 }
 
@@ -454,7 +457,7 @@
         setInterval(updateClock, 1000); // Update clock every second
         updateLearningStatus();
         renderHistory();
-        assessRiskByTime(getCurrentCycleSeconds()); // Initial risk check
+        // Huita assessRiskByTime ndani ya updateClock kila sekunde
     </script>
 </body>
 </html>
